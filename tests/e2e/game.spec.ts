@@ -777,7 +777,19 @@ test.describe('release checks', () => {
     const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("connect-src 'none'");
-    expect(await page.locator('script:not([src])').count(), 'no inline scripts under CSP').toBe(0);
+    expect(await page.locator('script:not([src]):not([type="application/ld+json"])').count(), 'no inline scripts under CSP').toBe(0);
+    await expect(page).toHaveTitle('Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero');
+    expect(await page.locator('meta[name="robots"]').count(), 'no robots meta (no accidental noindex)').toBe(0);
+    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+    expect(canonical).toMatch(/^https:\/\/[^/]+\/claude-swarm\/$/);
+    const og = await page.locator('meta[property="og:image"]').getAttribute('content');
+    expect(og).toBe(`${canonical}social-preview.png`);
+    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview.png', 'robots.txt']) {
+      const res = await page.request.get(new URL(`./${icon}`, page.url()).toString());
+      expect(res.status(), icon).toBe(200);
+    }
+    const html = await page.content();
+    expect(html).not.toMatch(/localhost|127\.0\.0\.1|PASTE|example\.com|TODO/i);
     await page.locator('#action-btn').click();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
   });
