@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#15110e" />
     <title>Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero</title>
-    <meta name="description" content="Eat tokens, spawn Claude-inspired bots and grow your swarm. Play this free, retro Snake-inspired fan game on desktop or mobile. Built by North of Zero." />
+    <meta name="description" content="Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile. Built by North of Zero." />
     <meta name="author" content="North of Zero" />
     <meta name="application-name" content="Claude Swarm" />
     <meta name="apple-mobile-web-app-title" content="Claude Swarm" />
@@ -21,18 +21,18 @@
     <meta property="og:locale" content="en_GB" />
     <meta property="og:url" content="https://meridian-knight.github.io/claude-swarm/" />
     <meta property="og:title" content="Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero" />
-    <meta property="og:description" content="Eat tokens, spawn Claude-inspired bots and grow your swarm. Play this free, retro Snake-inspired fan game on desktop or mobile. Built by North of Zero." />
+    <meta property="og:description" content="Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile. Built by North of Zero." />
     <meta property="og:image" content="https://meridian-knight.github.io/claude-swarm/social-preview.png" />
     <meta property="og:image:secure_url" content="https://meridian-knight.github.io/claude-swarm/social-preview.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Claude Swarm: a chain of orange pixel bots chasing a chip token. Eat tokens. Spawn bots. Grow your swarm. Unofficial fan game by North of Zero." />
+    <meta property="og:image:alt" content="Claude Swarm: a swarm of orange pixel agents chasing a token. Consume tokens. Spawn agents. Grow your swarm. Unofficial fan game by North of Zero." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero" />
-    <meta name="twitter:description" content="Eat tokens, spawn Claude-inspired bots and grow your swarm. Play this free, retro Snake-inspired fan game on desktop or mobile. Built by North of Zero." />
+    <meta name="twitter:description" content="Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile. Built by North of Zero." />
     <meta name="twitter:image" content="https://meridian-knight.github.io/claude-swarm/social-preview.png" />
-    <meta name="twitter:image:alt" content="Claude Swarm: a chain of orange pixel bots chasing a chip token. Eat tokens. Spawn bots. Grow your swarm. Unofficial fan game by North of Zero." />
+    <meta name="twitter:image:alt" content="Claude Swarm: a swarm of orange pixel agents chasing a token. Consume tokens. Spawn agents. Grow your swarm. Unofficial fan game by North of Zero." />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -40,7 +40,7 @@
         "name": "Claude Swarm",
         "url": "https://meridian-knight.github.io/claude-swarm/",
         "image": "https://meridian-knight.github.io/claude-swarm/social-preview.png",
-        "description": "Eat tokens, spawn Claude-inspired bots and grow your swarm. A free, retro Snake-inspired fan game for desktop and mobile.",
+        "description": "Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile.",
         "genre": "Arcade",
         "gamePlatform": "Web browser",
         "applicationCategory": "Game",
@@ -54,11 +54,14 @@
   <body data-status="idle">
     <main class="handheld">
       <header class="hud">
-        <h1 class="title">Claude Swarm</h1>
-        <dl class="stats">
+        <div class="brand">
+          <canvas id="hud-mascot" class="hud-mascot" width="24" height="24" aria-hidden="true"></canvas>
+          <h1 class="title">Claude Swarm</h1>
+        </div>
+        <dl class="scoreboard" aria-label="Scoreboard">
           <div class="stat"><dt>Score</dt><dd id="score">0</dd></div>
           <div class="stat"><dt>Best</dt><dd id="best">0</dd></div>
-          <div class="stat"><dt>Bots</dt><dd id="bots">1</dd></div>
+          <div class="stat"><dt>Agents</dt><dd id="bots">1</dd></div>
         </dl>
         <div class="hud-buttons">
           <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play" data-deck-label="Help">?</button>
@@ -73,11 +76,11 @@
 
         <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
           <canvas id="mascot" class="mascot" width="72" height="72" aria-hidden="true"></canvas>
-          <p class="eyebrow">Unofficial fan game</p>
+          <p class="eyebrow" id="overlay-eyebrow">Unofficial fan game</p>
           <h2 id="overlay-title">Claude Swarm</h2>
           <p id="overlay-text" class="overlay-text"></p>
-          <div id="overlay-controls" class="controls"></div>
           <p id="overlay-keys" class="keys"></p>
+          <div id="overlay-controls" class="controls"></div>
           <button id="action-btn" class="action" type="button">Start</button>
         </div>
 
@@ -99,8 +102,8 @@
           <h2 id="help-title">How to play</h2>
           <div id="help-controls" class="controls"></div>
           <ul class="rules">
-            <li>Collect tokens to score.</li>
-            <li>Every token adds a bot to your chain.</li>
+            <li>Consume tokens to score.</li>
+            <li>Every token spawns an agent into your swarm.</li>
             <li>Avoid the walls and your own swarm.</li>
           </ul>
           <button id="help-close" class="action" type="button">Close</button>

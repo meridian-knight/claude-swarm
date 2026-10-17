@@ -18,7 +18,7 @@ import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
 import { bindLayout } from './ui/layout';
-import { Mascot } from './ui/mascot';
+import { drawStaticBot, Mascot } from './ui/mascot';
 import { Renderer } from './ui/renderer';
 import { loadBest, loadMuted, saveBest, saveMuted } from './ui/storage';
 import { VisualState } from './ui/visual';
@@ -100,6 +100,7 @@ let lastFrame = 0;
 const frameTimes: number[] = [];
 
 function syncHud(delayMs = 0): void {
+  mascot.setMode(state.status === 'over' ? 'over' : state.status === 'won' ? 'won' : 'idle');
   hud.setStats({ score: state.score, best, bots: state.bots.length });
   hud.setOverlay({ status: state.status, score: state.score, best, newBest: best > bestAtRunStart }, delayMs);
 }
@@ -209,6 +210,7 @@ const resize = (): void => {
   const inner = Math.min(screen.clientWidth, screen.clientHeight);
   renderer.resize(inner);
   mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20);
+  drawStaticBot(document.getElementById('hud-mascot') as HTMLCanvasElement, 2);
 };
 new ResizeObserver(resize).observe(screen);
 window.addEventListener('orientationchange', () => window.setTimeout(resize, 50));
@@ -237,7 +239,7 @@ function frame(now: number): void {
 
   visual.prune(now);
   renderer.draw(state, visual, now, progress);
-  if (state.status === 'idle') mascot.draw(now);
+  if (state.status === 'idle' || state.status === 'over' || state.status === 'won') mascot.draw(now);
   window.requestAnimationFrame(frame);
 }
 

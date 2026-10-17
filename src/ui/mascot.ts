@@ -15,7 +15,25 @@ const SPIN_WINDOW_MS = 3000;
 
 const SPIN_ORDER: readonly Direction[] = ['up', 'right', 'down', 'left'];
 
+export type MascotMode = 'idle' | 'over' | 'won';
+
+/** Draws one static leader bot into a canvas (used for the header brand mark). */
+export function drawStaticBot(canvas: HTMLCanvasElement, cssScale: number, face: Face = 'open'): void {
+  const dpr = Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)));
+  const pixel = cssScale * dpr;
+  canvas.width = SPRITE_PX * pixel;
+  canvas.height = SPRITE_PX * pixel;
+  canvas.style.width = `${SPRITE_PX * cssScale}px`;
+  canvas.style.height = `${SPRITE_PX * cssScale}px`;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(botSprite({ kind: 'head', dir: 'right', legFrame: 0, face, tone: 'leader', gaze: 'centre' }, pixel), 0, 0);
+}
+
 export class Mascot {
+  private mode: MascotMode = 'idle';
   private readonly ctx: CanvasRenderingContext2D;
   private scale = 5;
   private pixel = 1;
@@ -69,8 +87,17 @@ export class Mascot {
     this.lastKey = '';
   }
 
-  /** Hover or tap: hop (or just blink under reduced motion). */
+  /** Start screen (idle animations), game over (static dizzy face) or win (open face, bounce). */
+  setMode(mode: MascotMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    this.lastKey = '';
+    this.canvas.dataset.mode = mode;
+  }
+
+  /** Hover or tap: hop (or just blink under reduced motion). Ignored on the game-over face. */
   poke(now: number): void {
+    if (this.mode === 'over') return;
     if (this.reducedMotion()) {
       this.blinkStart = now;
       return;
@@ -97,6 +124,19 @@ export class Mascot {
   }
 
   draw(now: number): void {
+    if (this.mode === 'over') {
+      // The in-game death face, held still; the CSS sway (if any) handles motion.
+      const key = 'centre:dizzy:0:0:1';
+      if (key === this.lastKey) return;
+      this.lastKey = key;
+      this.canvas.dataset.frame = key;
+      const sprite = this.sprite('centre', 'dizzy', 0);
+      const size = SPRITE_PX * this.pixel;
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.clearRect(0, 0, size, size);
+      this.ctx.drawImage(sprite, 0, 0);
+      return;
+    }
     const reduced = this.reducedMotion();
     let face: Face = 'open';
     let gaze: Gaze = 'centre';

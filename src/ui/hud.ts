@@ -37,6 +37,7 @@ export class Hud {
   private readonly text = el<HTMLElement>('overlay-text');
   private readonly keys = el<HTMLElement>('overlay-keys');
   private readonly controls = el<HTMLElement>('overlay-controls');
+  private readonly eyebrow = el<HTMLElement>('overlay-eyebrow');
   readonly mascot = el<HTMLCanvasElement>('mascot');
   readonly titleNode = el<HTMLElement>('overlay-title');
   /** While the help dialog is open, the pause overlay stays hidden underneath it. */
@@ -100,14 +101,15 @@ export class Hud {
     this.closeTimer = null;
 
     this.overlay.dataset.status = status;
-    this.mascot.hidden = status !== 'idle';
+    this.mascot.hidden = status === 'paused';
+    this.eyebrow.hidden = status !== 'idle';
     this.controls.hidden = status !== 'idle';
-    this.keys.hidden = status === 'idle';
+    this.keys.hidden = false;
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';
-        this.text.textContent = 'Collect tokens to grow your chain. Avoid walls and yourself.';
-        this.keys.textContent = '';
+        this.text.textContent = 'Consume tokens. Spawn agents. Grow your swarm.';
+        this.keys.textContent = 'Avoid the walls and your own swarm.';
         this.actionButton.textContent = 'Start';
         break;
       case 'paused':
@@ -124,7 +126,7 @@ export class Hud {
         break;
       case 'won':
         this.title.textContent = 'Swarm complete!';
-        this.text.textContent = `Every cell is a Claude. Score ${score}.`;
+        this.text.textContent = `Every cell is an agent. Score ${score}.`;
         this.keys.textContent = TOUCH ? 'Tap to play again' : 'Enter to play again';
         this.actionButton.textContent = 'Play again';
         break;

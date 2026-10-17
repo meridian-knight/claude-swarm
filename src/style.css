@@ -87,6 +87,21 @@ button {
   padding: 2px 4px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hud-mascot {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  margin-top: -2px; /* the sprite's legs sit low; optically centre the body on the title */
+}
+
 .title {
   margin: 0;
   font-size: 15px;
@@ -98,21 +113,29 @@ button {
     0 0 12px rgba(217, 119, 87, 0.45);
 }
 
-.stats {
+.scoreboard {
   display: flex;
-  gap: 14px;
   margin: 0 0 0 auto;
+  padding: 4px 4px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--bezel-dark);
+  border-radius: 8px;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 44px;
+  padding: 0 10px;
+  min-width: 0;
+}
+
+.stat + .stat {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .stat dt {
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -120,7 +143,10 @@ button {
 
 .stat dd {
   margin: 0;
+  min-width: 3ch;
+  text-align: right;
   font-size: 18px;
+  line-height: 1.1;
   font-weight: 700;
   color: var(--cream);
   font-variant-numeric: tabular-nums;
@@ -129,6 +155,20 @@ button {
 
 .stat dd.bump {
   animation: stat-bump 0.18s ease-out;
+}
+
+/* Game-over mascot: a slow 1px sway, dropped under reduced motion. */
+.mascot[data-mode="over"] {
+  animation: dizzy-sway 1.2s steps(2, end) infinite;
+}
+
+@keyframes dizzy-sway {
+  0% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(1px);
+  }
 }
 
 @keyframes stat-bump {
@@ -733,7 +773,7 @@ button {
 /* Touch layouts: deck visible, HUD chips move into the deck (see layout.ts). */
 @media (pointer: coarse), (max-width: 700px) {
   :root {
-    --chrome: 352px;
+    --chrome: 358px;
   }
   .deck {
     display: flex;
@@ -743,8 +783,11 @@ button {
     gap: 12px;
   }
   .overlay {
-    gap: 6px;
-    padding: 14px;
+    gap: 5px;
+    padding: 12px;
+  }
+  .keys {
+    font-size: 10px;
   }
   .modal-panel {
     padding: 12px;
@@ -779,6 +822,9 @@ button {
     --arm: 52px;
     --util: 48px;
   }
+  .title {
+    display: none; /* the mascot carries the brand; the start screen shows the name */
+  }
   body {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
@@ -800,21 +846,24 @@ button {
     padding: 2px 0;
   }
   .title {
-    font-size: 12px;
-    letter-spacing: 0.1em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
   }
-  .stats {
-    gap: 8px;
+  .brand {
+    gap: 6px;
+  }
+  .scoreboard {
+    padding: 3px 2px;
   }
   .stat {
-    min-width: 30px;
+    padding: 0 7px;
   }
   .stat dt {
-    font-size: 8px;
+    font-size: 7px;
     letter-spacing: 0.1em;
   }
   .stat dd {
-    font-size: 16px;
+    font-size: 15px;
   }
 }
 
@@ -929,6 +978,9 @@ button {
   .chip:active,
   .deck .chip:active {
     transform: none;
+  }
+  .mascot[data-mode="over"] {
+    animation: none;
   }
 }
 

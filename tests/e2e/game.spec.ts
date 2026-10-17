@@ -104,7 +104,14 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
     await expect(overlay.locator('#overlay-controls')).toContainText('Space');
     await expect(overlay.locator('#overlay-controls')).toContainText('Enter');
   }
-  await expect(overlay.locator('#overlay-text')).toHaveText('Collect tokens to grow your chain. Avoid walls and yourself.');
+  await expect(overlay.locator('#overlay-text')).toHaveText('Consume tokens. Spawn agents. Grow your swarm.');
+  await expect(overlay.locator('#overlay-keys')).toHaveText('Avoid the walls and your own swarm.');
+  await expect(page.locator('#help .rules')).toContainText('Every token spawns an agent into your swarm.');
+  await expect(page.locator('.scoreboard')).toContainText('Agents');
+  const hudMascot = (await page.locator('#hud-mascot').boundingBox())!;
+  expect(hudMascot.height).toBeLessThanOrEqual(28);
+  expect(hudMascot.width).toBeGreaterThanOrEqual(20);
+  if (!(isMobile && vp.width > vp.height && vp.height < 520)) await expect(page.locator('#mascot')).toBeVisible();
   await expect(page.locator('#action-btn')).toHaveText('Start');
   await expect(page.getByText('A fan game developed by North of Zero and Claude.')).toBeVisible();
   await expect(page.getByText('Not affiliated with or endorsed by Anthropic.')).toBeVisible();
@@ -872,6 +879,53 @@ test.describe('mobile readiness', () => {
     else expect(await last()).toBeNull();
   });
 
+  test('scoreboard keeps its size with large numbers and the HUD stays on one row', async ({ page, hasTouch }) => {
+    type ChainWindow = Window & { __swarm: { setChain(n: number): void } };
+    const widthOf = async (sel: string) => (await page.locator(sel).boundingBox())!.width;
+    const before = await widthOf('.scoreboard');
+    const hudBefore = (await page.locator('.hud').boundingBox())!;
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    if (hasTouch) await page.locator('#pause-btn').tap();
+    else await page.keyboard.press('Space');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    await page.evaluate(() => (window as unknown as ChainWindow).__swarm.setChain(150));
+    await expect(page.locator('#bots')).toHaveText('150');
+    const after = await widthOf('.scoreboard');
+    expect(Math.abs(after - before), 'no layout shift from 1 to 150').toBeLessThan(1);
+    const hudAfter = (await page.locator('.hud').boundingBox())!;
+    expect(hudAfter.height).toBeLessThan(hudBefore.height + 1);
+    const brand = (await page.locator('.brand').boundingBox())!;
+    const board = (await page.locator('.scoreboard').boundingBox())!;
+    expect(brand.x + brand.width, 'brand and scoreboard do not overlap').toBeLessThanOrEqual(board.x + 0.5);
+    expect(Math.abs(brand.y + brand.height / 2 - (board.y + board.height / 2)), 'brand and scoreboard on one row').toBeLessThan(hudBefore.height / 2);
+  });
+
+  test('game over shows the dizzy mascot above the score and Restart', async ({ page, viewport }) => {
+    await page.locator('#action-btn').click();
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    await expect(page.locator('#overlay')).toBeVisible();
+    const vw = viewport!.width;
+    const vh = viewport!.height;
+    const shortLandscape = vh < 520 && vw > vh;
+    const mascot = page.locator('#mascot');
+    if (shortLandscape) {
+      await expect(mascot).toBeHidden();
+    } else {
+      await expect(mascot).toBeVisible();
+      await expect.poll(() => mascot.getAttribute('data-frame')).toBe('centre:dizzy:0:0:1');
+      expect(await mascot.getAttribute('data-mode')).toBe('over');
+      const m = (await mascot.boundingBox())!;
+      const title = (await page.locator('#overlay-title').boundingBox())!;
+      expect(m.y + m.height).toBeLessThanOrEqual(title.y + 1);
+    }
+    await expect(page.locator('#overlay-eyebrow')).toBeHidden();
+    const btn = (await page.locator('#action-btn').boundingBox())!;
+    const board = (await page.locator('#board').boundingBox())!;
+    expect(btn.y + btn.height).toBeLessThanOrEqual(board.y + board.height + 0.5);
+    await expect(page.locator('#action-btn')).toHaveText('Restart');
+  });
+
   test('a 150-bot chain renders within the frame budget', async ({ page, hasTouch }, testInfo) => {
     await page.locator('#action-btn').click();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
@@ -902,6 +956,10 @@ test.describe('release checks', () => {
     expect(csp).toContain("connect-src 'none'");
     expect(await page.locator('script:not([src]):not([type="application/ld+json"])').count(), 'no inline scripts under CSP').toBe(0);
     await expect(page).toHaveTitle('Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero');
+    const description = await page.locator('meta[name="description"]').getAttribute('content');
+    expect(description).toContain('Consume tokens, spawn agents and grow your swarm.');
+    const ogDesc = await page.locator('meta[property="og:description"]').getAttribute('content');
+    expect(ogDesc).toBe(description);
     expect(await page.locator('meta[name="robots"]').count(), 'no robots meta (no accidental noindex)').toBe(0);
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toMatch(/^https:\/\/[^/]+\/claude-swarm\/$/);

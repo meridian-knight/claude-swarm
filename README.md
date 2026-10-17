@@ -2,14 +2,14 @@
 
 A fan game developed by North of Zero and Claude. Not affiliated with or endorsed by Anthropic.
 
-Snake, with a swarm: steer a little orange pixel bot, collect chips, and every chip adds another bot to your chain. Hit a wall or your own swarm and the run is over. Fill the board to win.
+Snake, with a swarm: steer a little orange pixel agent, consume tokens, and every token spawns another agent into your swarm. Hit a wall or your own swarm and the run is over. Fill the board to win.
 
-Everything runs in the browser. There is no backend, no account, no AI API and no network traffic: the bots are canvas sprites.
+Everything runs in the browser. There is no backend, no account, no AI API and no network traffic. "Agents" is the game's name for its characters: they are canvas sprites, not real AI agents.
 
 ## Play
 
 - Desktop: arrow keys or WASD to move, Space to pause, Enter to start or restart, `?` for help.
-- Touch: D-pad or swipe to move, A to pause, B for help.
+- Touch: D-pad on the right (or swipe) to move; pause, help and sound buttons on the left.
 - Best score and the sound setting are saved in your browser's localStorage only.
 
 ## Develop
