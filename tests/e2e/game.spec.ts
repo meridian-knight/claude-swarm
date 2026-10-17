@@ -999,8 +999,12 @@ test.describe('release checks', () => {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toMatch(/^https:\/\/[^/]+\/claude-swarm\/$/);
     const og = await page.locator('meta[property="og:image"]').getAttribute('content');
-    expect(og).toBe(`${canonical}social-preview.png`);
-    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview.png', 'robots.txt']) {
+    expect(og).toBe(`${canonical}social-preview-v2.png`);
+    expect(await page.locator('meta[name="twitter:image"]').getAttribute('content')).toBe(og);
+    expect(await page.locator('meta[property="og:image:alt"]').getAttribute('content')).toContain('North of Zero + Claude');
+    expect(description).toContain('Built by North of Zero + Claude.');
+    expect(await page.content()).not.toContain('social-preview.png"');
+    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview-v2.png', 'robots.txt']) {
       const res = await page.request.get(new URL(`./${icon}`, page.url()).toString());
       expect(res.status(), icon).toBe(200);
     }

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "serve:subpath": "node scripts/serve-dist.mjs 4174"
+    "serve:subpath": "node scripts/serve-dist.mjs 4174",
+    "assets": "node scripts/make-assets.mjs public social-preview-v2.png"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",
