@@ -16,6 +16,8 @@
   /* Touch deck sizes. */
   --arm: 60px;
   --util: 52px;
+  /* Smallest board we accept before letting the page scroll (touch only). */
+  --board-min: 0px;
   --vh: 100vh;
   color-scheme: dark;
 }
@@ -225,7 +227,7 @@ button {
 /* Screen ----------------------------------------------------------- */
 .screen {
   position: relative;
-  width: min(100%, calc(var(--vh) - var(--chrome)));
+  width: min(100%, max(var(--board-min), calc(var(--vh) - var(--chrome))));
   max-width: 520px;
   aspect-ratio: 1;
   margin: 0 auto;
@@ -786,25 +788,12 @@ button {
   border-bottom-color: var(--orange-light);
 }
 
-/* On touch layouts the D-pad appears once a game starts; on the start screen
-   only the pause/help/sound row stays (so the guide and sound are reachable)
-   and the board uses the freed height. */
-body[data-layout="touch"][data-status="idle"] .dpad {
-  display: none;
-}
-
-body[data-layout="touch"][data-status="idle"] .deck {
-  justify-content: center;
-  padding-top: 0;
-}
-
-body[data-layout="touch"][data-status="idle"] .deck-left {
-  flex-direction: row;
-  gap: 18px;
-}
-
-body[data-layout="touch"][data-status="idle"] {
-  --chrome: 236px;
+/* The handheld frame and both control groups are always visible on touch
+   layouts; the D-pad is simply dimmed while there is no game to steer. */
+body[data-status="idle"] .dpad,
+body[data-status="over"] .dpad,
+body[data-status="won"] .dpad {
+  opacity: 0.45;
 }
 
 body[data-layout="touch"] #overlay-controls {
@@ -814,21 +803,6 @@ body[data-layout="touch"] #overlay-controls {
 body[data-layout="touch"] .action {
   min-height: 46px;
   min-width: 60%;
-}
-
-@keyframes deck-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-body[data-layout="touch"]:not([data-status="idle"]) .dpad {
-  animation: deck-in 0.12s ease-out;
 }
 
 /* Breakpoints ------------------------------------------------------ */
@@ -853,6 +827,7 @@ body[data-layout="touch"]:not([data-status="idle"]) .dpad {
 @media (pointer: coarse), (max-width: 700px) {
   :root {
     --chrome: 358px;
+    --board-min: 304px; /* 288px canvas + frame padding */
   }
   .deck {
     display: flex;
@@ -887,6 +862,7 @@ body[data-layout="touch"]:not([data-status="idle"]) .dpad {
     --chrome: 322px;
     --arm: 52px;
     --util: 48px;
+    --board-min: 304px; /* 288px canvas + frame padding */
   }
   .handheld {
     gap: 8px;
@@ -992,6 +968,7 @@ body[data-layout="touch"]:not([data-status="idle"]) .dpad {
     --chrome: 120px;
     --arm: 52px;
     --util: 48px;
+    --board-min: 200px;
   }
   body {
     padding-top: max(6px, env(safe-area-inset-top, 0px));
@@ -1023,12 +1000,6 @@ body[data-layout="touch"]:not([data-status="idle"]) .dpad {
   }
   .overlay-inner {
     gap: 4px;
-  }
-  body[data-layout="touch"][data-status="idle"] {
-    --chrome: 120px;
-  }
-  body[data-layout="touch"][data-status="idle"] .deck-left {
-    flex-direction: column;
   }
   .overlay h2 { font-size: 16px; }
   .overlay-text {
@@ -1067,9 +1038,6 @@ body[data-layout="touch"]:not([data-status="idle"]) .dpad {
     transform: none;
   }
   .mascot[data-mode="over"] {
-    animation: none;
-  }
-  body[data-layout="touch"]:not([data-status="idle"]) .dpad {
     animation: none;
   }
 }

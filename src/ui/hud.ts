@@ -106,7 +106,7 @@ export class Hud {
     this.controls.hidden = status !== 'idle';
     this.keys.hidden = false;
     this.hint.hidden = !(status === 'idle' && TOUCH);
-    this.hint.textContent = status === 'idle' && TOUCH ? 'D-pad right · Pause, Help, Sound left · tap ? for the guide' : '';
+    this.hint.textContent = status === 'idle' && TOUCH ? 'Use the D-pad or swipe to move.' : '';
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';

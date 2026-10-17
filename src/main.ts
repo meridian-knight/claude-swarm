@@ -101,6 +101,7 @@ const frameTimes: number[] = [];
 
 function syncHud(delayMs = 0): void {
   mascot.setMode(state.status === 'over' ? 'over' : state.status === 'won' ? 'won' : 'idle');
+  dpad?.setAttribute('aria-disabled', String(state.status !== 'running' && state.status !== 'paused'));
   hud.setStats({ score: state.score, best, bots: state.bots.length });
   hud.setOverlay({ status: state.status, score: state.score, best, newBest: best > bestAtRunStart }, delayMs);
 }
@@ -160,7 +161,7 @@ function startOrRestart(): void {
 bindInput(
   {
     onDirection(dir: Direction) {
-      if (state.status === 'idle') apply(startGame(state, rng));
+      // Direction input only steers a running game; Start / Enter begin one.
       const next = queueDirection(state, dir);
       if (next !== state) {
         state = next;

@@ -97,7 +97,7 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   } else if (isMobile) {
     // Touch start screen: no legend, one hint line; the full legend lives in the help dialog.
     await expect(overlay.locator('#overlay-controls')).toBeHidden();
-    await expect(overlay.locator('#overlay-hint')).toHaveText('D-pad right · Pause, Help, Sound left · tap ? for the guide');
+    await expect(overlay.locator('#overlay-hint')).toHaveText('Use the D-pad or swipe to move.');
     await expect(page.locator('#help-controls')).toContainText('Left: pause · help · sound');
     await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
     await expect(page.locator('#help-controls .legend-sides .control-group')).toHaveCount(2);
@@ -251,7 +251,7 @@ test.describe('touch play', () => {
     if (vw > vh) expect(board!.height).toBeGreaterThan(vh * 0.55);
     else expect(board!.width).toBeGreaterThan(vw * 0.7);
 
-    await expect(page.locator('.dpad'), 'D-pad hidden on the start screen').toBeHidden();
+    await expect(page.locator('.dpad'), 'D-pad visible on the start screen').toBeVisible();
     await expect(page.locator('#help-btn'), 'help reachable on the start screen').toBeVisible();
     await page.locator('#action-btn').tap();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
@@ -609,7 +609,7 @@ test.describe('mobile readiness', () => {
       dpr: window.devicePixelRatio,
     }));
     expect(doc.sw, 'no horizontal scroll').toBeLessThanOrEqual(doc.cw);
-    expect(doc.sh, 'no vertical scroll').toBeLessThanOrEqual(doc.ch + 1);
+    if (!(hasTouch && vh < 600 && vw < vh)) expect(doc.sh, 'no vertical scroll').toBeLessThanOrEqual(doc.ch + 1);
 
     const board = (await page.locator('#board').boundingBox())!;
     if (vw > vh) expect(board.height).toBeGreaterThanOrEqual(vh * 0.6);
@@ -624,9 +624,18 @@ test.describe('mobile readiness', () => {
 
     if (hasTouch) {
       await expect(page.locator('body')).toHaveAttribute('data-layout', 'touch');
-      // Start screen: D-pad hidden, utilities reachable, no legend, hint shown, Start comfortably tall, everything inside the board.
-      await expect(page.locator('.dpad')).toBeHidden();
+      // Start screen: whole handheld visible; D-pad present but inert; utilities reachable; no keyboard legend; hint shown.
+      await expect(page.locator('.dpad')).toBeVisible();
+      await expect(page.locator('.dpad')).toHaveAttribute('aria-disabled', 'true');
       for (const sel of ['#pause-btn', '#help-btn', '#mute-btn']) await expect(page.locator(sel)).toBeVisible();
+      await expect(page.locator('#overlay-hint')).toHaveText('Use the D-pad or swipe to move.');
+      const idleGeometry = await page.evaluate(() => ['.dpad', '.deck-left', '#board', '.hud', '.foot'].map((s) => JSON.stringify(document.querySelector(s)!.getBoundingClientRect())));
+      await page.locator('[data-dir="up"]').tap({ force: true }); // aria-disabled, so skip Playwright's enabled check
+      await page.waitForTimeout(250);
+      await expect(page.locator('body'), 'D-pad tap does not start a game').toHaveAttribute('data-status', 'idle');
+      const shortScreen = vh < 600 && vw < vh;
+      if (shortScreen) expect(doc.sh, 'short screens scroll instead of clipping').toBeGreaterThan(doc.ch);
+      if (vw < vh) expect(board.height, 'portrait board never shrinks below 288px').toBeGreaterThanOrEqual(287);
       await expect(page.locator('#overlay-controls')).toBeHidden();
       if (!(vw > vh)) await expect(page.locator('#overlay-hint')).toBeVisible();
       const startBtn = (await page.locator('#action-btn').boundingBox())!;
@@ -643,9 +652,13 @@ test.describe('mobile readiness', () => {
       for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y, `${startItems[i]} does not overlap ${startItems[i - 1]}`).toBeGreaterThanOrEqual(boxes[i - 1]!.y + boxes[i - 1]!.height - 1);
       await page.locator('#action-btn').tap();
       await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
-      await expect(page.locator('.dpad')).toBeVisible();
-      const playDoc = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ch: document.documentElement.clientHeight }));
-      expect(playDoc.sh, 'no vertical scroll during play').toBeLessThanOrEqual(playDoc.ch + 1);
+      await expect(page.locator('.dpad')).toHaveAttribute('aria-disabled', 'false');
+      const playGeometry = await page.evaluate(() => ['.dpad', '.deck-left', '#board', '.hud', '.foot'].map((s) => JSON.stringify(document.querySelector(s)!.getBoundingClientRect())));
+      expect(playGeometry, 'layout identical at idle and during play').toEqual(idleGeometry);
+      if (!shortScreen) {
+        const playDoc = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ch: document.documentElement.clientHeight }));
+        expect(playDoc.sh, 'no vertical scroll during play').toBeLessThanOrEqual(playDoc.ch + 1);
+      }
       for (const sel of ['#pause-btn', '#help-btn', '#mute-btn']) {
         const caption = await page.locator(sel).evaluate((el) => getComputedStyle(el, '::after').content);
         expect(caption, `${sel} has no caption`).toMatch(/^(none|normal|"")$/);
