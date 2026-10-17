@@ -1,4 +1,5 @@
 import type { Status } from '../game/types';
+import { renderControls } from './controls';
 
 export interface HudStats {
   score: number;
@@ -35,6 +36,11 @@ export class Hud {
   private readonly title = el<HTMLElement>('overlay-title');
   private readonly text = el<HTMLElement>('overlay-text');
   private readonly keys = el<HTMLElement>('overlay-keys');
+  private readonly controls = el<HTMLElement>('overlay-controls');
+  readonly mascot = el<HTMLCanvasElement>('mascot');
+  readonly titleNode = el<HTMLElement>('overlay-title');
+  /** While the help dialog is open, the pause overlay stays hidden underneath it. */
+  suppressPause = false;
   readonly actionButton = el<HTMLButtonElement>('action-btn');
   readonly pauseButton = el<HTMLButtonElement>('pause-btn');
   readonly muteButton = el<HTMLButtonElement>('mute-btn');
@@ -42,6 +48,12 @@ export class Hud {
   private last: HudStats = { score: -1, best: -1, bots: -1 };
   private openTimer: number | null = null;
   private closeTimer: number | null = null;
+
+  constructor() {
+    renderControls(this.controls, TOUCH);
+    const helpControls = document.getElementById('help-controls');
+    if (helpControls) renderControls(helpControls, TOUCH);
+  }
 
   setStats(stats: HudStats): void {
     this.update(this.score, stats.score, this.last.score);
@@ -79,7 +91,7 @@ export class Hud {
 
     if (this.openTimer !== null) window.clearTimeout(this.openTimer);
     this.openTimer = null;
-    if (status === 'running') {
+    if (status === 'running' || (status === 'paused' && this.suppressPause)) {
       this.close();
       return;
     }
@@ -87,11 +99,14 @@ export class Hud {
     this.closeTimer = null;
 
     this.overlay.dataset.status = status;
+    this.mascot.hidden = status !== 'idle';
+    this.controls.hidden = status !== 'idle';
+    this.keys.hidden = status === 'idle';
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';
-        this.text.textContent = 'Eat tokens to spawn agents. Every token adds a bot to your swarm. Don’t hit the walls or your own chain.';
-        this.keys.textContent = TOUCH ? 'Tap Start, then steer with the D-pad or swipe' : 'Arrows / WASD move · Space pause · Enter start';
+        this.text.textContent = 'Collect tokens to grow your chain. Avoid walls and yourself.';
+        this.keys.textContent = '';
         this.actionButton.textContent = 'Start';
         break;
       case 'paused':

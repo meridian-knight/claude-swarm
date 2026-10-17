@@ -12,12 +12,16 @@ export type Face = 'open' | 'blink' | 'chomp' | 'dizzy';
 export type Tone = 'leader' | 'a' | 'b' | 'dim';
 export type LegFrame = 0 | 1 | 2;
 
+export type Gaze = Direction | 'centre';
+
 export interface BotSpriteOptions {
   kind: BotKind;
   dir: Direction;
   legFrame: LegFrame;
   face: Face;
   tone: Tone;
+  /** Where the leader's eyes point; defaults to the travel direction. */
+  gaze?: Gaze;
 }
 
 const SHARED: Readonly<Record<string, string>> = {
@@ -78,6 +82,7 @@ const LEGS: Readonly<Record<LegFrame, readonly number[]>> = {
  */
 export function botSprite(opts: BotSpriteOptions, scale: number): HTMLCanvasElement {
   const { kind, dir, legFrame, face, tone } = opts;
+  const gaze: Gaze = opts.gaze ?? dir;
   const g = blank();
 
   // Body: x 0..11, y 1..8 with 1px rounded corners.
@@ -102,10 +107,10 @@ export function botSprite(opts: BotSpriteOptions, scale: number): HTMLCanvasElem
   let ex = 0;
   let ey = 0;
   if (kind === 'head' && face !== 'dizzy') {
-    if (dir === 'left') ex = -1;
-    if (dir === 'right') ex = 1;
-    if (dir === 'up') ey = -1;
-    if (dir === 'down') ey = 1;
+    if (gaze === 'left') ex = -1;
+    if (gaze === 'right') ex = 1;
+    if (gaze === 'up') ey = -1;
+    if (gaze === 'down') ey = 1;
   }
 
   if (face === 'dizzy') {

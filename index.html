@@ -18,6 +18,7 @@
           <div class="stat"><dt>Bots</dt><dd id="bots">1</dd></div>
         </dl>
         <div class="hud-buttons">
+          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play">?</button>
           <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" disabled>❚❚</button>
           <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound">🔊</button>
         </div>
@@ -26,12 +27,28 @@
       <section class="screen" id="screen">
         <canvas id="board" width="480" height="480" aria-label="Game board"></canvas>
         <div id="effects" class="effects" aria-live="polite"></div>
+
         <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
+          <canvas id="mascot" class="mascot" width="72" height="72" aria-hidden="true"></canvas>
           <p class="eyebrow">Unofficial fan game</p>
           <h2 id="overlay-title">Claude Swarm</h2>
           <p id="overlay-text" class="overlay-text"></p>
+          <div id="overlay-controls" class="controls"></div>
           <p id="overlay-keys" class="keys"></p>
           <button id="action-btn" class="action" type="button">Start</button>
+        </div>
+
+        <div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+          <div class="modal-panel">
+            <h2 id="help-title">How to play</h2>
+            <div id="help-controls" class="controls"></div>
+            <ul class="rules">
+              <li>Collect tokens to score.</li>
+              <li>Every token adds a bot to your chain.</li>
+              <li>Avoid the walls and your own swarm.</li>
+            </ul>
+            <button id="help-close" class="action" type="button">Close</button>
+          </div>
         </div>
       </section>
 
@@ -44,8 +61,8 @@
       </nav>
 
       <footer class="foot">
-        <p class="hint" aria-hidden="true">Arrows / WASD move · Space pause · Enter start</p>
-        <p class="legal">Unofficial fan game. Not affiliated with or endorsed by Anthropic.</p>
+        <p class="legal">A fan game developed by North of Zero and Claude.</p>
+        <p class="legal">Not affiliated with or endorsed by Anthropic.</p>
       </footer>
     </main>
     <script type="module" src="/src/main.ts"></script>

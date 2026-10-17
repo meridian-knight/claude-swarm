@@ -13,8 +13,10 @@ import { defaultRng, seededRng, type Rng } from './game/rng';
 import type { Direction, GameState, Point, StepResult } from './game/types';
 import { GameAudio } from './ui/audio';
 import { Effects } from './ui/effects';
+import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
+import { Mascot } from './ui/mascot';
 import { Renderer } from './ui/renderer';
 import { loadBest, loadMuted, saveBest, saveMuted } from './ui/storage';
 import { VisualState } from './ui/visual';
@@ -50,6 +52,26 @@ const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
 const effects = new Effects(effectsLayer, canvas, GRID_COLS);
 const audio = new GameAudio(loadMuted());
 const visual = new VisualState();
+const mascot = new Mascot(hud.mascot, () => visual.reducedMotion);
+
+const helpRoot = document.getElementById('help') as HTMLElement;
+const helpClose = document.getElementById('help-close') as HTMLButtonElement;
+const helpButton = document.getElementById('help-btn') as HTMLButtonElement;
+let resumeAfterHelp = false;
+const help = new HelpModal(helpRoot, helpClose, helpButton, {
+  onOpen() {
+    audio.unlock();
+    hud.suppressPause = true;
+    resumeAfterHelp = state.status === 'running';
+    if (resumeAfterHelp) apply(togglePause(state));
+  },
+  onClose() {
+    hud.suppressPause = false;
+    if (resumeAfterHelp && state.status === 'paused') apply(togglePause(state));
+    else syncHud();
+    resumeAfterHelp = false;
+  },
+});
 
 let state: GameState = createGame(GRID_COLS, GRID_ROWS);
 let best = loadBest();
@@ -135,6 +157,9 @@ bindInput(
     onGesture() {
       audio.unlock();
     },
+    isBlocked() {
+      return help.isOpen;
+    },
   },
   { canvas, dpad, action: hud.actionButton, pause: hud.pauseButton },
 );
@@ -155,6 +180,7 @@ document.addEventListener('visibilitychange', () => {
 const resize = (): void => {
   const inner = Math.min(screen.clientWidth, screen.clientHeight);
   renderer.resize(inner);
+  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20);
 };
 new ResizeObserver(resize).observe(screen);
 resize();
@@ -181,6 +207,7 @@ function frame(now: number): void {
 
   visual.prune(now);
   renderer.draw(state, visual, now, progress);
+  if (state.status === 'idle') mascot.draw(now);
   window.requestAnimationFrame(frame);
 }
 

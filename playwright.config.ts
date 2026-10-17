@@ -22,6 +22,11 @@ export default defineConfig({
       name: 'mobile',
       use: { ...devices['Pixel 7'] },
     },
+    {
+      name: 'landscape',
+      use: { ...devices['Pixel 7 landscape'] },
+      grep: /fit the viewport|start screen/,
+    },
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${PORT} --strictPort --host 127.0.0.1`,

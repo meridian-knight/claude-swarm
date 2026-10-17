@@ -10,6 +10,8 @@ export interface InputHandlers {
   onAction(): void;
   /** Any first user gesture (used to unlock audio). */
   onGesture(): void;
+  /** When true (e.g. a dialog is open) no game input is processed. */
+  isBlocked(): boolean;
 }
 
 const KEY_DIRECTIONS: Readonly<Record<string, Direction>> = {
@@ -55,6 +57,7 @@ export function bindInput(
   window.addEventListener(
     'keydown',
     (e) => {
+      if (handlers.isBlocked()) return;
       const dir = KEY_DIRECTIONS[e.key];
       if (dir) {
         e.preventDefault();
@@ -81,6 +84,7 @@ export function bindInput(
 
   // D-pad: react on pointerdown so taps feel instant.
   elements.dpad.addEventListener('pointerdown', (e) => {
+    if (handlers.isBlocked()) return;
     const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
     const dir = target?.dataset.dir as Direction | undefined;
     if (!dir) return;
@@ -90,17 +94,20 @@ export function bindInput(
   });
   // Keyboard activation of d-pad buttons (Enter/Space on a focused button).
   elements.dpad.addEventListener('click', (e) => {
+    if (handlers.isBlocked()) return;
     const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
     const dir = target?.dataset.dir as Direction | undefined;
     if (dir && (e as PointerEvent).pointerType === '') steer(dir);
   });
 
   elements.action.addEventListener('click', () => {
+    if (handlers.isBlocked()) return;
     handlers.onGesture();
     handlers.onAction();
     elements.action.blur();
   });
   elements.pause.addEventListener('click', () => {
+    if (handlers.isBlocked()) return;
     handlers.onGesture();
     handlers.onPause();
     elements.pause.blur();
@@ -109,6 +116,7 @@ export function bindInput(
   // Swipe anywhere on the board.
   let start: { x: number; y: number; id: number } | null = null;
   elements.canvas.addEventListener('pointerdown', (e) => {
+    if (handlers.isBlocked()) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
     handlers.onGesture();
   });
