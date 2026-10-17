@@ -773,6 +773,11 @@ button {
   margin: 2px 0;
 }
 
+/* Brand names keep their own casing inside uppercase lines. */
+.brand-name {
+  text-transform: none;
+}
+
 /* On touch layouts the D-pad appears once a game starts; on the start screen
    only the pause/help/sound row stays (so the guide and sound are reachable)
    and the board uses the freed height. */

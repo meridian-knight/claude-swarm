@@ -71,6 +71,6 @@ To roll back, revert the offending commits on `main` and push; Pages keeps servi
 
 ## Credits
 
-A fan game developed by **North of Zero** and **Claude**.
+A fan game developed by **CyberSquad0** + **Claude**.
 
 Not affiliated with or endorsed by Anthropic. Not affiliated with Nokia.

@@ -116,7 +116,7 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   expect(hudMascot.width).toBeGreaterThanOrEqual(20);
   if (!(isMobile && vp.width > vp.height && vp.height < 520)) await expect(page.locator('#mascot')).toBeVisible();
   await expect(page.locator('#action-btn')).toHaveText('Start');
-  await expect(page.getByText('A fan game developed by North of Zero and Claude.')).toBeVisible();
+  await expect(page.locator('.foot')).toContainText('A fan game developed by CyberSquad0 + Claude.');
   await expect(page.getByText('Not affiliated with or endorsed by Anthropic.')).toBeVisible();
   await expect(page.locator('.foot')).not.toContainText(/arrows|wasd|space|enter/i);
   await expect(page.locator('#score')).toHaveText('0');
@@ -380,7 +380,7 @@ test.describe('visual polish safety', () => {
 
 test.describe('instructions and mascot', () => {
   const footerVisible = async (page: Page): Promise<void> => {
-    await expect(page.getByText('A fan game developed by North of Zero and Claude.')).toBeVisible();
+    await expect(page.locator('.foot')).toContainText('A fan game developed by CyberSquad0 + Claude.');
     await expect(page.getByText('Not affiliated with or endorsed by Anthropic.')).toBeVisible();
   };
 
@@ -990,7 +990,7 @@ test.describe('release checks', () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("connect-src 'none'");
     expect(await page.locator('script:not([src]):not([type="application/ld+json"])').count(), 'no inline scripts under CSP').toBe(0);
-    await expect(page).toHaveTitle('Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | North of Zero');
+    await expect(page).toHaveTitle('Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | CyberSquad0');
     const description = await page.locator('meta[name="description"]').getAttribute('content');
     expect(description).toContain('Consume tokens, spawn agents and grow your swarm.');
     const ogDesc = await page.locator('meta[property="og:description"]').getAttribute('content');
@@ -999,12 +999,12 @@ test.describe('release checks', () => {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toMatch(/^https:\/\/[^/]+\/claude-swarm\/$/);
     const og = await page.locator('meta[property="og:image"]').getAttribute('content');
-    expect(og).toBe(`${canonical}social-preview-v2.png`);
+    expect(og).toBe(`${canonical}social-preview-v3.png`);
     expect(await page.locator('meta[name="twitter:image"]').getAttribute('content')).toBe(og);
-    expect(await page.locator('meta[property="og:image:alt"]').getAttribute('content')).toContain('North of Zero + Claude');
-    expect(description).toContain('Built by North of Zero + Claude.');
-    expect(await page.content()).not.toContain('social-preview.png"');
-    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview-v2.png', 'robots.txt']) {
+    expect(await page.locator('meta[property="og:image:alt"]').getAttribute('content')).toContain('CyberSquad0 + Claude');
+    expect(description).toContain('Built by CyberSquad0 + Claude.');
+    expect(await page.content()).not.toContain('social-preview-v2.png');
+    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview-v3.png', 'robots.txt']) {
       const res = await page.request.get(new URL(`./${icon}`, page.url()).toString());
       expect(res.status(), icon).toBe(200);
     }

@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Claude Swarm - an unofficial Snake-style fan game with a swarm of pixel bots.",
+  "description": "Claude Swarm - an unofficial Snake-style fan game: consume tokens, spawn agents, grow your swarm. Built by CyberSquad0 + Claude.",
+  "author": "CyberSquad0",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -12,7 +13,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "serve:subpath": "node scripts/serve-dist.mjs 4174",
-    "assets": "node scripts/make-assets.mjs public social-preview-v2.png"
+    "assets": "node scripts/make-assets.mjs public social-preview-v3.png",
+    "shots": "node scripts/readme-shots.mjs docs"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",
