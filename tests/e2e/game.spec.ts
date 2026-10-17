@@ -93,14 +93,15 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   if (isMobile && vp.width > vp.height && vp.height < 520) {
     // Short landscape: the legend lives in the help dialog only.
     await expect(overlay.locator('#overlay-controls')).toBeHidden();
-    await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
+    await expect(page.locator('#help-controls')).toContainText('Use the D-pad or swipe to move.');
   } else if (isMobile) {
     // Touch start screen: no legend, one hint line; the full legend lives in the help dialog.
     await expect(overlay.locator('#overlay-controls')).toBeHidden();
     await expect(overlay.locator('#overlay-hint')).toHaveText('Use the D-pad or swipe to move.');
-    await expect(page.locator('#help-controls')).toContainText('Left: pause · help · sound');
-    await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
-    await expect(page.locator('#help-controls .legend-sides .control-group')).toHaveCount(2);
+    await expect(page.locator('#help-controls')).toContainText('Use the D-pad or swipe to move.');
+    await expect(page.locator('#help-controls .control-group')).toHaveCount(1);
+    await expect(page.locator('#help-controls .key-round')).toHaveCount(0);
+    await expect(page.locator('#help-controls')).not.toContainText(/pause|help|sound/i);
   } else {
     await expect(overlay.locator('.keys-cluster')).toHaveCount(2);
     await expect(overlay.locator('.key')).toHaveCount(10);
@@ -482,6 +483,16 @@ test.describe('instructions and mascot', () => {
     expect(panel!.y + panel!.height).toBeLessThanOrEqual(vh + 0.5);
     expect(panel!.x + panel!.width).toBeLessThanOrEqual(vw + 0.5);
     await expect(page.locator('#help-close')).toBeVisible();
+    if (hasTouch) {
+      await expect(page.locator('#help-controls .mini-dpad')).toBeVisible();
+      const legend = (await page.locator('#help-controls').boundingBox())!;
+      expect(legend.height, 'compact single D-pad legend').toBeLessThanOrEqual(90);
+      const innerScroll = await page.locator('.modal-panel').evaluate((el) => el.scrollHeight - el.clientHeight);
+      expect(innerScroll, 'help panel needs no inner scroll').toBeLessThanOrEqual(0);
+      await page.waitForTimeout(250); // let the panel's open transition finish before measuring
+      const closeBox = (await page.locator('#help-close').boundingBox())!;
+      expect(closeBox.height).toBeGreaterThanOrEqual(44);
+    }
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

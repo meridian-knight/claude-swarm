@@ -487,19 +487,6 @@ button {
   min-width: 58px;
 }
 
-.legend-sides {
-  display: flex;
-  gap: 28px;
-  align-items: flex-start;
-}
-
-.legend-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-}
-
 .key-round {
   width: calc(var(--key) + 6px);
   height: calc(var(--key) + 6px);
@@ -517,8 +504,8 @@ button {
 
 .mini-dpad {
   display: grid;
-  grid-template-columns: repeat(3, 14px);
-  grid-template-rows: repeat(3, 14px);
+  grid-template-columns: repeat(3, 18px);
+  grid-template-rows: repeat(3, 18px);
   grid-template-areas:
     ". u ."
     "l c r"
@@ -542,6 +529,25 @@ button {
   grid-area: c;
   border: 0;
   background: var(--bezel-edge);
+  position: relative;
+}
+
+.mini-dpad .c::after {
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: var(--bezel-dark);
+}
+
+.control-group-dpad {
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.control-group-dpad .control-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 /* Mascot ----------------------------------------------------------- */
