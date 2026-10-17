@@ -1,9 +1,20 @@
+# dependencies and build output
 node_modules
 dist
+
+# test artifacts
 test-results
 playwright-report
-.DS_Store
 
+# local configuration and secrets (never commit)
 .env
 .env.*
 *.local
+
+# editor, tooling and OS files
+.claude/
+.vscode/
+.idea/
+.DS_Store
+*.log
+npm-debug.log*

@@ -42,6 +42,10 @@ const test = base.extend<{ errors: string[] }>({
           errors.push(`external request: ${r.url()}`);
         }
       });
+      page.on('requestfailed', (r) => errors.push(`request failed: ${r.url()} ${r.failure()?.errorText ?? ''}`));
+      page.on('response', (r) => {
+        if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`);
+      });
       await use(errors);
       expect(errors, 'browser console must stay clean and no external requests').toEqual([]);
     },
@@ -770,6 +774,10 @@ test.describe('release checks', () => {
       Array.from(document.querySelectorAll('script[src], link[rel="stylesheet"]')).map((n) => n.getAttribute('src') ?? n.getAttribute('href')),
     );
     for (const a of assets) expect(a, 'relative asset path').toMatch(/^\.\//);
+    const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("connect-src 'none'");
+    expect(await page.locator('script:not([src])').count(), 'no inline scripts under CSP').toBe(0);
     await page.locator('#action-btn').click();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
   });
