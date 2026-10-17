@@ -107,6 +107,6 @@ node scripts/audit-help.mjs          # help dialog fit across 6 viewports
 
 ## Open items
 
-- GitHub repository description is empty; suggested: "Claude Swarm: a retro Snake-inspired fan game. Consume tokens. Spawn agents. Grow your swarm. Built by CyberSquad0 + Claude."
+- GitHub repository description, website and topics are set (description: "Claude Swarm: a retro Snake-inspired fan game. Consume tokens. Spawn agents. Grow your swarm. Built by CyberSquad0 + Claude."; website: the Pages URL; topics: game, snake, retro, browser-game, typescript, vite, github-pages, fan-game). Change them with `gh repo edit` when logged in.
 - No licence file by choice; add one deliberately if the project should be reusable.
 - Social cards cached by platforms before 1.2.0 may show older artwork until re-scraped.
