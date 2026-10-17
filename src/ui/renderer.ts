@@ -81,12 +81,29 @@ export class Renderer {
     const cellFit = Math.min(availW / this.cols, availH / this.rows);
     // Below 12 device px per cell (a collapsed frame) sprites lose pixels, but
     // the canvas still fits the box and still maps 1:1.
-    let cellDevice = Math.max(1, Math.floor(cellFit * dpr));
+    const largest = Math.max(1, Math.floor(cellFit * dpr));
+    // The CSS box must also be a whole number of CSS px: engines position a
+    // fractional box (e.g. 940 device px = 313.33 CSS px at 3x) off the pixel
+    // grid and drift or drop 1 px lines even at a 1:1 size. Take the largest
+    // cell within 10% of the fit whose box is whole on both axes; if the ratio
+    // allows none (e.g. 2.75x needs steps of 11 px), fall back to the plain fit.
+    const wholeCss = (c: number): boolean => {
+      const w = (this.cols * c) / dpr;
+      const h = (this.rows * c) / dpr;
+      return Math.abs(w - Math.round(w)) < 1e-6 && Math.abs(h - Math.round(h)) < 1e-6;
+    };
+    let cellDevice = largest;
+    for (let c = largest; c >= Math.max(1, Math.ceil(largest * 0.9)); c--) {
+      if (wholeCss(c)) {
+        cellDevice = c;
+        break;
+      }
+    }
     // Prefer uniform sprite pixels (a sprite multiple) when that costs little
     // board area; on 1x displays uneven pixels show more, so accept a bigger loss.
     const crisp = SPRITE_PX * Math.floor(cellDevice / SPRITE_PX);
     const threshold = dpr < 2 ? 0.75 : 0.9;
-    if (crisp >= cellDevice * threshold) cellDevice = crisp;
+    if (crisp >= cellDevice * threshold && (wholeCss(crisp) || !wholeCss(cellDevice))) cellDevice = crisp;
     this.dpr = dpr;
     this.cellDevice = cellDevice;
     this.scale = cellDevice / SPRITE_PX;

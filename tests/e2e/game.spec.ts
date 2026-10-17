@@ -1093,6 +1093,13 @@ test.describe('square cells', () => {
     expect(Math.abs(m.box[0] * m.dpr - m.backing[0]), `${label}: box × dpr = backing width`).toBeLessThan(0.05);
     expect(Math.abs(m.box[1] * m.dpr - m.backing[1]), `${label}: box × dpr = backing height`).toBeLessThan(0.05);
     expect(m.oneToOne, `${label}: oneToOne`).toBe(true);
+    // Whole CSS pixels too (a fractional box drifts off the device grid in both engines).
+    // Always reachable at integer ratios; at 2.625x (Pixel 7) only in 21 px steps, so the
+    // renderer falls back to the plain fit there when a whole box would cost over 10%.
+    if ([1, 2, 3].includes(m.dpr)) {
+      expect(Number.isInteger(m.box[0]), `${label}: box width whole CSS px (${m.box[0]})`).toBe(true);
+      expect(Number.isInteger(m.box[1]), `${label}: box height whole CSS px (${m.box[1]})`).toBe(true);
+    }
     return m;
   };
 
