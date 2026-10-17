@@ -31,6 +31,8 @@ const KEY_DIRECTIONS: Readonly<Record<string, Direction>> = {
 
 const SWIPE_MIN_PX = 20;
 const PRESSED_MS = 140;
+/** A second D-pad arm pressed within this window counts as a diagonal slip and is ignored. */
+const CHORD_MS = 60;
 
 export function bindInput(
   handlers: InputHandlers,
@@ -82,22 +84,45 @@ export function bindInput(
     { passive: false },
   );
 
-  // D-pad: react on pointerdown so taps feel instant.
+  // D-pad: react on pointerdown so taps feel instant. Each pointer is tracked
+  // so a held arm never repeats and a near-simultaneous second arm (a thumb
+  // catching two arms) is ignored instead of queuing a second turn.
+  const held = new Map<number, { dir: Direction; at: number }>();
+  const release = (e: PointerEvent): void => {
+    held.delete(e.pointerId);
+  };
   elements.dpad.addEventListener('pointerdown', (e) => {
     if (handlers.isBlocked()) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
     const dir = target?.dataset.dir as Direction | undefined;
     if (!dir) return;
     e.preventDefault();
+    const now = performance.now();
+    let chord = false;
+    for (const other of held.values()) {
+      if (other.dir !== dir && now - other.at < CHORD_MS) chord = true;
+    }
+    held.set(e.pointerId, { dir, at: now });
+    try {
+      target?.setPointerCapture(e.pointerId);
+    } catch {
+      // Older browsers: capture is a nicety, not a requirement.
+    }
     handlers.onGesture();
-    steer(dir);
+    if (!chord) steer(dir);
   });
-  // Keyboard activation of d-pad buttons (Enter/Space on a focused button).
+  elements.dpad.addEventListener('pointerup', release);
+  elements.dpad.addEventListener('pointercancel', release);
+  elements.dpad.addEventListener('lostpointercapture', release);
+  elements.dpad.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Keyboard activation of d-pad buttons (Enter/Space on a focused button):
+  // a keyboard click has detail 0 in Chromium, Firefox and Safari.
   elements.dpad.addEventListener('click', (e) => {
     if (handlers.isBlocked()) return;
     const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
     const dir = target?.dataset.dir as Direction | undefined;
-    if (dir && (e as PointerEvent).pointerType === '') steer(dir);
+    if (dir && e.detail === 0) steer(dir);
   });
 
   elements.action.addEventListener('click', () => {

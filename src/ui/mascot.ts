@@ -56,9 +56,9 @@ export class Mascot {
     });
   }
 
-  /** Sizes the sprite to the title: 6x beside a 24px title, 5x on phones. */
+  /** Sizes the sprite to the title: 6x beside a 24px title, 5x on phones, 4x on small phones. */
   fit(titleFontPx: number): void {
-    this.scale = titleFontPx >= 22 ? 6 : 5;
+    this.scale = titleFontPx >= 22 ? 6 : titleFontPx >= 19 ? 5 : 4;
     const dpr = Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)));
     this.pixel = this.scale * dpr;
     this.canvas.width = SPRITE_PX * this.pixel;

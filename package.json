@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "serve:subpath": "node scripts/serve-dist.mjs 4174"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",

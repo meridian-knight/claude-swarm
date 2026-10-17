@@ -29,18 +29,33 @@ const VECTORS: Record<SwarmState['dir'], Point> = {
 /** Every test collects console errors and uncaught exceptions and fails if any occurred. */
 const test = base.extend<{ errors: string[] }>({
   errors: [
-    async ({ page }, use) => {
+    async ({ page, baseURL }, use) => {
       const errors: string[] = [];
+      const allowedHost = new URL(baseURL ?? 'http://127.0.0.1:4173').host;
       page.on('console', (m) => {
         if (m.type() === 'error') errors.push(`console: ${m.text()}`);
       });
       page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+      page.on('request', (r) => {
+        const url = new URL(r.url());
+        if (url.protocol.startsWith('http') && url.host !== allowedHost) {
+          errors.push(`external request: ${r.url()}`);
+        }
+      });
       await use(errors);
-      expect(errors, 'browser console must stay clean').toEqual([]);
+      expect(errors, 'browser console must stay clean and no external requests').toEqual([]);
     },
     { auto: true },
   ],
 });
+
+/** Dispatches a touch pointerdown straight at a D-pad arm, bypassing hit-testing (tests the input guard). */
+const pokeArm = (page: Page, dir: string): Promise<void> =>
+  page.evaluate((d) => {
+    const btn = document.querySelector(`[data-dir="${d}"]`) as HTMLElement;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9, pointerType: 'touch', isPrimary: true }));
+    btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9, pointerType: 'touch', isPrimary: true }));
+  }, dir);
 
 const getState = (page: Page): Promise<SwarmState> =>
   page.evaluate(() => (window as unknown as SwarmWindow).__swarm.getState());
@@ -61,7 +76,8 @@ async function placeTokenAhead(page: Page, resume: () => Promise<void>, pause: (
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/?test&seed=42');
+  // Relative so the same tests run from a sub-path deployment.
+  await page.goto('./?test&seed=42');
 });
 
 test('shows the start screen, instructions, HUD and fan-game label', async ({ page, isMobile }) => {
@@ -71,7 +87,8 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   await expect(overlay.locator('h2')).toHaveText('Claude Swarm');
   if (isMobile) {
     await expect(overlay.locator('.mini-dpad')).toBeVisible();
-    await expect(overlay.locator('#overlay-controls')).toContainText('D-pad or swipe');
+    await expect(overlay.locator('#overlay-controls')).toContainText('D-pad');
+    await expect(overlay.locator('#overlay-controls')).toContainText('A pause');
   } else {
     await expect(overlay.locator('.keys-cluster')).toHaveCount(2);
     await expect(overlay.locator('.key')).toHaveCount(10);
@@ -366,7 +383,7 @@ test.describe('instructions and mascot', () => {
     await expect(page.locator('#overlay')).toBeHidden(); // no pause panel under the dialog
 
     const frozen = await getState(page);
-    if (isMobile) await page.locator('[data-dir="up"]').tap();
+    if (isMobile) await pokeArm(page, 'up');
     else await page.keyboard.press('ArrowUp');
     await page.waitForTimeout(400);
     const still = await getState(page);
@@ -539,5 +556,221 @@ test.describe('chip tokens', () => {
     await placeTokenAhead(page, resume, pause);
     await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
     expect((await chip(page)).particles).toBe(0);
+  });
+});
+
+test.describe('mobile readiness', () => {
+  type ReadyWindow = Window & {
+    __swarm: {
+      getState(): SwarmState;
+      setChain(n: number): void;
+      frameStats(): { avgMs: number; maxMs: number; samples: number };
+    };
+  };
+  const center = async (page: Page, sel: string) => {
+    const b = await page.locator(sel).boundingBox();
+    if (!b) throw new Error(`no box for ${sel}`);
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+
+  test('layout fits the viewport with large touch targets', async ({ page, viewport, hasTouch }) => {
+    const vw = viewport!.width;
+    const vh = viewport!.height;
+    const doc = await page.evaluate(() => ({
+      sw: document.documentElement.scrollWidth,
+      sh: document.documentElement.scrollHeight,
+      cw: document.documentElement.clientWidth,
+      ch: document.documentElement.clientHeight,
+      dpr: window.devicePixelRatio,
+    }));
+    expect(doc.sw, 'no horizontal scroll').toBeLessThanOrEqual(doc.cw);
+    expect(doc.sh, 'no vertical scroll').toBeLessThanOrEqual(doc.ch + 1);
+
+    const board = (await page.locator('#board').boundingBox())!;
+    if (vw > vh) expect(board.height).toBeGreaterThanOrEqual(vh * 0.6);
+    else if (hasTouch && vw <= 430) expect(board.width).toBeGreaterThanOrEqual(vw * 0.76);
+
+    const canvas = await page.evaluate(() => {
+      const c = document.getElementById('board') as HTMLCanvasElement;
+      return { w: c.width, css: c.clientWidth };
+    });
+    expect(canvas.w % 240, 'integer sprite scale').toBe(0);
+    if (doc.dpr < 2) expect(Math.abs(canvas.css - canvas.w / doc.dpr), 'crisp on 1x').toBeLessThan(1);
+
+    if (hasTouch) {
+      await expect(page.locator('body')).toHaveAttribute('data-layout', 'touch');
+      for (const sel of ['[data-dir="up"]', '[data-dir="left"]', '[data-dir="right"]', '[data-dir="down"]', '#pause-btn', '#help-btn', '#mute-btn']) {
+        const b = (await page.locator(sel).boundingBox())!;
+        expect(b.width, `${sel} width`).toBeGreaterThanOrEqual(48);
+        expect(b.height, `${sel} height`).toBeGreaterThanOrEqual(48);
+        expect(b.y + b.height, `${sel} in view`).toBeLessThanOrEqual(vh + 0.5);
+      }
+      const pause = (await page.locator('#pause-btn').boundingBox())!;
+      const up = (await page.locator('[data-dir="up"]').boundingBox())!;
+      expect(pause.y, 'pause sits at deck level, not in the HUD').toBeGreaterThan(up.y - 80);
+      expect(await page.locator('.hud-buttons .chip').count()).toBe(0);
+    } else {
+      await expect(page.locator('body')).toHaveAttribute('data-layout', 'desktop');
+      await expect(page.locator('.deck')).toBeHidden();
+      expect(await page.locator('.hud-buttons .chip').count()).toBe(3);
+    }
+  });
+
+  test('touch-only run from start to restart', async ({ page, hasTouch }) => {
+    test.skip(!hasTouch, 'touch projects only');
+    const a = page.locator('#pause-btn');
+    const b = page.locator('#help-btn');
+    await page.locator('#action-btn').tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+
+    await page.locator('[data-dir="up"]').tap();
+    await expect.poll(async () => (await getState(page)).dir).toBe('up');
+
+    await placeTokenAhead(page, () => a.tap(), () => a.tap());
+    await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
+    await expect(page.locator('[data-effect="spawned"]').first()).toBeVisible();
+    await expect(page.locator('#bots')).toHaveText('2');
+
+    await a.tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    await expect(a).toHaveAttribute('aria-label', 'Resume');
+
+    await b.tap();
+    await expect(page.locator('#help')).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    const before = await getState(page);
+    await pokeArm(page, 'left'); // the dialog covers the deck; the input guard must also ignore it
+    await page.waitForTimeout(200);
+    expect((await getState(page)).queue).toEqual(before.queue);
+    expect((await getState(page)).dir).toBe(before.dir);
+    await page.locator('#help-close').tap();
+    await expect(page.locator('#help')).toBeHidden();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+
+    await a.tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    await expect(page.locator('#overlay h2')).toHaveText('Game over');
+    await page.locator('#action-btn').tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    expect((await getState(page)).bots).toHaveLength(1);
+  });
+
+  test('chord, hold and sequential presses on the D-pad', async ({ page, hasTouch, browserName }) => {
+    test.skip(!hasTouch || browserName !== 'chromium', 'uses CDP touch injection');
+    const cdp = await page.context().newCDPSession(page);
+    await page.locator('#action-btn').tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+
+    // Chord: thumb lands on ▲ and ◀ together -> one turn (the first), never two.
+    const up = await center(page, '[data-dir="up"]');
+    const left = await center(page, '[data-dir="left"]');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: up.x, y: up.y, id: 0 }, { x: left.x, y: left.y, id: 1 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    expect((await getState(page)).queue.length).toBeLessThanOrEqual(1);
+    await expect.poll(async () => (await getState(page)).dir).toBe('up');
+    await page.waitForTimeout(400);
+    expect((await getState(page)).dir).toBe('up');
+    expect((await getState(page)).status).toBe('running');
+
+    // Hold: pressing ◀ for half a second is a single turn.
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: left.x, y: left.y, id: 2 }] });
+    await page.waitForTimeout(500);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(async () => (await getState(page)).dir).toBe('left');
+    expect((await getState(page)).queue).toEqual([]);
+
+    // Sequential: ▼ then ▶ 120 ms apart are two deliberate turns.
+    const down = await center(page, '[data-dir="down"]');
+    const right = await center(page, '[data-dir="right"]');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: down.x, y: down.y, id: 3 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(120);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: right.x, y: right.y, id: 4 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(async () => (await getState(page)).dir, { timeout: 3_000 }).toBe('right');
+  });
+
+  test('losing focus or being hidden pauses until an explicit resume', async ({ page, hasTouch }) => {
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    const frozen = await getState(page);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    await page.waitForTimeout(500);
+    expect((await getState(page)).tick).toBe(frozen.tick);
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+
+    if (hasTouch) await page.locator('#pause-btn').tap();
+    else await page.keyboard.press('Space');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+  });
+
+  test('resizing mid-game keeps the state and refits the board', async ({ page, viewport, hasTouch }) => {
+    await page.locator('#action-btn').click();
+    await expect.poll(async () => (await getState(page)).tick).toBeGreaterThan(0);
+    if (hasTouch) await page.locator('#pause-btn').tap();
+    else await page.keyboard.press('Space');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    const before = await getState(page);
+    const canvasBefore = await page.evaluate(() => (document.getElementById('board') as HTMLCanvasElement).clientWidth);
+
+    // Shrink by 20% but never below 320px, the narrowest phone we support.
+    await page.setViewportSize({
+      width: Math.max(320, Math.round(viewport!.width * 0.8)),
+      height: Math.max(480, Math.round(viewport!.height * 0.8)),
+    });
+    await page.waitForTimeout(250);
+    const after = await getState(page);
+    expect(after.bots).toEqual(before.bots);
+    expect(after.score).toBe(before.score);
+    expect(after.token).toEqual(before.token);
+    expect(after.status).toBe('paused');
+    const canvasAfter = await page.evaluate(() => (document.getElementById('board') as HTMLCanvasElement).clientWidth);
+    expect(canvasAfter).toBeGreaterThan(0);
+    expect(canvasBefore).toBeGreaterThan(0);
+    const board = (await page.locator('#board').boundingBox())!;
+    const size = page.viewportSize()!;
+    expect(board.x + board.width).toBeLessThanOrEqual(size.width + 0.5);
+    expect(board.y + board.height).toBeLessThanOrEqual(size.height + 0.5);
+    const doc = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+    expect(doc.sw).toBeLessThanOrEqual(doc.cw);
+  });
+
+  test('a 150-bot chain renders within the frame budget', async ({ page, hasTouch }, testInfo) => {
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await page.evaluate(() => (window as unknown as ReadyWindow).__swarm.setChain(150));
+    if (hasTouch) await page.locator('#pause-btn').tap();
+    else await page.keyboard.press('Space');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+    expect((await getState(page)).bots).toHaveLength(150);
+    await page.waitForTimeout(2_000);
+    const stats = await page.evaluate(() => (window as unknown as ReadyWindow).__swarm.frameStats());
+    testInfo.annotations.push({ type: 'frame-stats-150', description: JSON.stringify(stats) });
+    expect(stats.samples).toBeGreaterThan(30);
+    expect(stats.avgMs).toBeLessThan(25);
+  });
+});
+
+test.describe('release checks', () => {
+  test('page loads from its deployed path with no external requests', async ({ page, baseURL }) => {
+    await expect(page.locator('#board')).toBeVisible();
+    await expect(page.locator('#overlay-title')).toHaveText('Claude Swarm');
+    expect(page.url().startsWith(baseURL!)).toBe(true);
+    const assets = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('script[src], link[rel="stylesheet"]')).map((n) => n.getAttribute('src') ?? n.getAttribute('href')),
+    );
+    for (const a of assets) expect(a, 'relative asset path').toMatch(/^\.\//);
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
   });
 });

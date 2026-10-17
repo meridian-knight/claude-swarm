@@ -71,7 +71,10 @@ export class Renderer {
     const exact = (cssPx * dpr) / perSide;
     let scale = Math.max(1, Math.floor(exact));
     const crispFill = scale / exact;
-    if (crispFill < 0.9) scale = Math.max(1, Math.ceil(exact));
+    // On 1x displays a CSS downscale makes pixel rows uneven, so stay crisp
+    // unless the crisp board would be tiny; high-DPR screens hide the difference.
+    const threshold = dpr < 2 ? 0.75 : 0.9;
+    if (crispFill < threshold) scale = Math.max(1, Math.ceil(exact));
     this.scale = scale;
     const cell = SPRITE_PX * scale;
     this.canvas.width = this.cols * cell;

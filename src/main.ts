@@ -16,6 +16,7 @@ import { Effects } from './ui/effects';
 import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
+import { bindLayout } from './ui/layout';
 import { Mascot } from './ui/mascot';
 import { Renderer } from './ui/renderer';
 import { loadBest, loadMuted, saveBest, saveMuted } from './ui/storage';
@@ -28,6 +29,8 @@ declare global {
       placeToken(p: Point): void;
       step(): void;
       lastDraw(): Point;
+      /** Test-only: replaces the swarm with a legal n-bot chain (visual/perf checks). */
+      setChain(n: number): void;
       lastTokenDraw(): Point | null;
       tokenFrame(): 0 | 1;
       particleCount(): number;
@@ -51,6 +54,14 @@ const dpad = document.querySelector<HTMLElement>('.dpad');
 if (!dpad) throw new Error('Missing d-pad');
 
 const hud = new Hud();
+bindLayout({
+  hudButtons: document.querySelector<HTMLElement>('.hud-buttons') as HTMLElement,
+  deckAb: document.getElementById('deck-ab') as HTMLElement,
+  deckPills: document.getElementById('deck-pills') as HTMLElement,
+  pause: hud.pauseButton,
+  help: hud.muteButton.ownerDocument.getElementById('help-btn') as HTMLButtonElement,
+  mute: hud.muteButton,
+});
 const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
 const effects = new Effects(effectsLayer, canvas, GRID_COLS);
 const audio = new GameAudio(loadMuted());
@@ -176,9 +187,15 @@ hud.muteButton.addEventListener('click', () => {
   hud.muteButton.blur();
 });
 
+// Leaving the page, losing focus or backgrounding pauses; resuming is always explicit.
+const pauseIfRunning = (): void => {
+  if (state.status === 'running') apply(togglePause(state));
+};
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.status === 'running') apply(togglePause(state));
+  if (document.hidden) pauseIfRunning();
 });
+window.addEventListener('blur', pauseIfRunning);
+window.addEventListener('pagehide', pauseIfRunning);
 
 const resize = (): void => {
   const inner = Math.min(screen.clientWidth, screen.clientHeight);
@@ -186,6 +203,8 @@ const resize = (): void => {
   mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20);
 };
 new ResizeObserver(resize).observe(screen);
+window.addEventListener('orientationchange', () => window.setTimeout(resize, 50));
+window.visualViewport?.addEventListener('resize', resize);
 resize();
 
 function frame(now: number): void {
@@ -230,6 +249,22 @@ if (params.has('test')) {
       apply(step(state, rng));
     },
     lastDraw: () => renderer.lastHead,
+    setChain(n: number) {
+      // Boustrophedon path from the top-left; head is the last cell, moving down.
+      const cells: Point[] = [];
+      for (let y = 0; y < state.rows && cells.length < n; y++) {
+        for (let i = 0; i < state.cols && cells.length < n; i++) {
+          cells.push({ x: y % 2 === 0 ? i : state.cols - 1 - i, y });
+        }
+      }
+      const bots = cells.reverse();
+      // Park the token in the far corner so the chain does not eat it straight away.
+      const corner = { x: state.cols - 1, y: state.rows - 1 };
+      const token = bots.some((b) => b.x === corner.x && b.y === corner.y) ? null : corner;
+      state = { ...state, bots, dir: 'down', queue: [], token };
+      visual.prevBots = bots;
+      syncHud();
+    },
     lastTokenDraw: () => renderer.lastToken,
     tokenFrame: () => renderer.lastTokenFrame,
     particleCount: () => visual.particles.length,

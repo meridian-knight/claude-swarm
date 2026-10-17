@@ -12,8 +12,18 @@
   --text: #efe4d3;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   /* Vertical space taken by everything except the board. */
-  --chrome: 200px;
+  --chrome: 140px;
+  /* Touch deck sizes. */
+  --arm: 56px;
+  --ab: 56px;
+  --vh: 100vh;
   color-scheme: dark;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 100dvh;
+  }
 }
 
 * {
@@ -27,7 +37,7 @@ body {
 }
 
 body {
-  min-height: 100dvh;
+  min-height: var(--vh);
   background:
     radial-gradient(ellipse at 50% 0%, rgba(217, 119, 87, 0.12), transparent 60%),
     var(--bg);
@@ -41,6 +51,7 @@ body {
   padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
     max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   overflow-x: hidden;
+  overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -53,6 +64,7 @@ button {
 }
 
 .handheld {
+  position: relative;
   width: min(100%, 560px);
   background: linear-gradient(180deg, #2a211a, var(--bezel));
   border-radius: 28px;
@@ -135,7 +147,12 @@ button {
   gap: 6px;
 }
 
+.hud-buttons:empty {
+  display: none;
+}
+
 .chip {
+  position: relative;
   width: 36px;
   height: 32px;
   border-radius: 8px;
@@ -160,10 +177,15 @@ button {
   color: var(--muted);
 }
 
+.chip:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--bezel-dark);
+}
+
 /* Screen ----------------------------------------------------------- */
 .screen {
   position: relative;
-  width: min(100%, calc(100dvh - var(--chrome)));
+  width: min(100%, calc(var(--vh) - var(--chrome)));
   max-width: 520px;
   aspect-ratio: 1;
   margin: 0 auto;
@@ -178,6 +200,152 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Faint scanlines for the LCD feel; light enough to never hide a token. */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.09) 0,
+    rgba(0, 0, 0, 0.09) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+#board {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow:
+    0 0 0 1px var(--bezel-dark),
+    0 0 18px rgba(217, 119, 87, 0.08);
+}
+
+.effects {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.effect-spawned {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  color: var(--cream);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow:
+    0 0 6px var(--orange),
+    0 1px 0 #000;
+  animation: rise 0.7s steps(7, end) forwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -28px;
+  }
+}
+
+/* Overlay ---------------------------------------------------------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px;
+  background: rgba(21, 17, 14, 0.84);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 0.16s ease-out,
+    transform 0.16s ease-out;
+}
+
+.overlay.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overlay h2 {
+  margin: 0;
+  font-size: clamp(18px, 5vw, 24px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow: 0 0 14px rgba(217, 119, 87, 0.6);
+}
+
+.overlay-text {
+  margin: 0;
+  max-width: 32ch;
+  color: var(--text);
+}
+
+.keys {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.keys[hidden] {
+  display: none;
+}
+
+.action {
+  margin-top: 6px;
+  background: var(--orange);
+  color: #1a110b;
+  border: 0;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 var(--orange-deep);
+}
+
+.action:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--orange-deep);
 }
 
 /* Keycap legend ---------------------------------------------------- */
@@ -212,6 +380,7 @@ button {
 .keys-row {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .keys-cluster {
@@ -254,6 +423,21 @@ button {
   min-width: 58px;
 }
 
+.key-round {
+  width: calc(var(--key) + 6px);
+  height: calc(var(--key) + 6px);
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.key-a {
+  background: var(--orange);
+  color: #1a110b;
+  border-color: var(--orange-deep);
+  box-shadow: 0 2px 0 var(--orange-deep);
+}
+
 .mini-dpad {
   display: grid;
   grid-template-columns: repeat(3, 14px);
@@ -262,7 +446,7 @@ button {
     ". u ."
     "l c r"
     ". d .";
-  gap: 2px;
+  gap: 0;
   height: calc(var(--key) * 2 + 2px);
   align-content: center;
 }
@@ -271,22 +455,16 @@ button {
   display: block;
   background: var(--bezel-edge);
   border: 1px solid #4d3c2f;
-  border-radius: 3px;
 }
 
-.mini-dpad .u { grid-area: u; }
-.mini-dpad .l { grid-area: l; }
-.mini-dpad .r { grid-area: r; }
-.mini-dpad .d { grid-area: d; }
+.mini-dpad .u { grid-area: u; border-radius: 3px 3px 0 0; border-bottom: 0; }
+.mini-dpad .l { grid-area: l; border-radius: 3px 0 0 3px; border-right: 0; }
+.mini-dpad .r { grid-area: r; border-radius: 0 3px 3px 0; border-left: 0; }
+.mini-dpad .d { grid-area: d; border-radius: 0 0 3px 3px; border-top: 0; }
 .mini-dpad .c {
   grid-area: c;
-  background: var(--bezel-dark);
-  border-color: transparent;
-  border-radius: 50%;
-  width: 6px;
-  height: 6px;
-  justify-self: center;
-  align-self: center;
+  border: 0;
+  background: var(--bezel-edge);
 }
 
 /* Mascot ----------------------------------------------------------- */
@@ -308,6 +486,7 @@ button {
   position: absolute;
   inset: 0;
   z-index: 4;
+  border-radius: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -375,221 +554,164 @@ button {
   color: var(--orange);
 }
 
-/* Faint scanlines for the LCD feel; light enough to never hide a token. */
-.screen::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.09) 0,
-    rgba(0, 0, 0, 0.09) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  mix-blend-mode: multiply;
-  opacity: 0.5;
-}
-
-#board {
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  touch-action: none;
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow:
-    0 0 0 1px var(--bezel-dark),
-    0 0 18px rgba(217, 119, 87, 0.08);
-}
-
-.effects {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.effect-spawned {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  color: var(--cream);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  text-shadow:
-    0 0 6px var(--orange),
-    0 1px 0 #000;
-  animation: rise 0.7s steps(7, end) forwards;
-}
-
-@keyframes rise {
-  from {
-    opacity: 1;
-    translate: 0 0;
-  }
-  to {
-    opacity: 0;
-    translate: 0 -28px;
-  }
-}
-
-.overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
+/* Touch deck (Game Boy style) -------------------------------------- */
+.deck {
+  display: none;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-align: center;
-  padding: 20px;
-  background: rgba(21, 17, 14, 0.84);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  transform: scale(0.96);
-  transition:
-    opacity 0.16s ease-out,
-    transform 0.16s ease-out;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px calc(2px + env(safe-area-inset-bottom, 0px));
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
-.overlay.is-open {
-  opacity: 1;
-  transform: none;
-}
-
-.overlay[hidden] {
-  display: none;
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.overlay h2 {
-  margin: 0;
-  font-size: clamp(18px, 5vw, 24px);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--orange);
-  text-shadow: 0 0 14px rgba(217, 119, 87, 0.6);
-}
-
-.overlay-text {
-  margin: 0;
-  max-width: 32ch;
-  color: var(--text);
-}
-
-.keys {
-  margin: 0;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.action {
-  margin-top: 6px;
-  background: var(--orange);
-  color: #1a110b;
-  border: 0;
-  padding: 10px 22px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  border-radius: 6px;
-  box-shadow: 0 3px 0 var(--orange-deep);
-}
-
-.action:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--orange-deep);
-}
-
-/* D-pad ------------------------------------------------------------ */
 .dpad {
-  display: none;
-  grid-template-columns: repeat(3, 58px);
-  grid-template-rows: repeat(3, 58px);
+  display: grid;
+  grid-template-columns: repeat(3, var(--arm));
+  grid-template-rows: repeat(3, var(--arm));
   grid-template-areas:
     ". up ."
     "left center right"
     ". down .";
-  gap: 6px;
-  justify-content: center;
-  margin: 2px auto 0;
+  gap: 0;
+  filter: drop-shadow(0 4px 0 var(--bezel-dark));
 }
 
 .dpad-btn {
-  font-size: 20px;
+  font-size: 18px;
   background: var(--bezel-edge);
   color: var(--cream);
   border: 2px solid #4d3c2f;
-  border-radius: 12px;
-  box-shadow: 0 4px 0 var(--bezel-dark);
-  touch-action: manipulation;
   padding: 0;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  transition: background 0.08s linear;
+}
+
+.dpad-btn.up {
+  grid-area: up;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 0;
+}
+
+.dpad-btn.left {
+  grid-area: left;
+  border-radius: 12px 0 0 12px;
+  border-right: 0;
+}
+
+.dpad-btn.right {
+  grid-area: right;
+  border-radius: 0 12px 12px 0;
+  border-left: 0;
+}
+
+.dpad-btn.down {
+  grid-area: down;
+  border-radius: 0 0 12px 12px;
+  border-top: 0;
+}
+
+.dpad-center {
+  grid-area: center;
+  background: var(--bezel-edge);
+  position: relative;
+}
+
+.dpad-center::after {
+  content: "";
+  position: absolute;
+  inset: 35%;
+  border-radius: 50%;
+  background: var(--bezel-dark);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .dpad-btn:active,
 .dpad-btn.pressed {
-  transform: translateY(3px);
-  box-shadow:
-    0 1px 0 var(--bezel-dark),
-    0 0 14px rgba(217, 119, 87, 0.45);
   background: var(--orange);
   color: #1a110b;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.25);
 }
 
-.chip:active {
-  transform: translateY(1px);
+.deck-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ab {
+  display: grid;
+  grid-template-columns: var(--ab) var(--ab);
+  grid-template-rows: var(--ab) var(--ab);
+  grid-template-areas:
+    "m a"
+    "b .";
+  gap: 6px;
+  padding: 14px 0;
+}
+
+.ab #pause-btn { grid-area: a; }
+.ab #help-btn { grid-area: b; }
+.ab #mute-btn {
+  grid-area: m;
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
+  align-self: start;
+  justify-self: start;
+}
+
+.ab #mute-btn::after {
+  top: auto;
+  bottom: calc(100% + 5px);
+}
+
+.deck .chip {
+  width: var(--ab);
+  height: var(--ab);
+  border-radius: 50%;
+  font-size: 18px;
+  box-shadow: 0 4px 0 var(--bezel-dark);
+}
+
+.deck .chip:active {
+  transform: translateY(3px);
   box-shadow: 0 1px 0 var(--bezel-dark);
 }
 
-.dpad-btn.up { grid-area: up; }
-.dpad-btn.left { grid-area: left; }
-.dpad-btn.right { grid-area: right; }
-.dpad-btn.down { grid-area: down; }
-
-.dpad-center {
-  grid-area: center;
-  align-self: center;
-  justify-self: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--bezel-dark);
+.deck #pause-btn {
+  background: var(--orange);
+  color: #1a110b;
+  border-color: var(--orange-deep);
+  box-shadow: 0 4px 0 var(--orange-deep);
 }
 
-@media (pointer: coarse), (max-width: 700px) {
-  :root {
-    --chrome: 380px;
-  }
-  .dpad {
-    display: grid;
-  }
-  .controls {
-    --key: 21px;
-    gap: 12px;
-  }
-  .overlay {
-    gap: 6px;
-    padding: 14px;
-  }
-  .modal-panel {
-    padding: 12px;
-    gap: 8px;
-  }
+.deck #pause-btn:active {
+  box-shadow: 0 1px 0 var(--orange-deep);
+}
+
+.deck #pause-btn:disabled {
+  opacity: 0.45;
+}
+
+.deck .chip::after {
+  content: attr(data-deck-label);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.pill-row[hidden] {
+  display: none;
 }
 
 /* Footer ----------------------------------------------------------- */
@@ -605,44 +727,77 @@ button {
   margin: 2px 0;
 }
 
-/* Short landscape phones: board left, d-pad right. */
-@media (max-height: 520px) and (orientation: landscape) {
-  :root {
-    --chrome: 120px;
+/* Breakpoints ------------------------------------------------------ */
+
+/* Short desktop windows: trim vertical padding so a crisp 480px board fits. */
+@media (max-height: 700px) {
+  body {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
-  .handheld {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "hud hud"
-      "screen dpad"
-      "foot foot";
-    align-items: center;
-  }
-  .hud { grid-area: hud; }
-  .screen { grid-area: screen; }
-  .dpad { grid-area: dpad; margin: 0; }
-  .foot { grid-area: foot; }
-  /* Not enough height for the mascot; keep title, controls and Start in view. */
-  .mascot { display: none; }
-  .overlay {
-    gap: 4px;
-    padding: 10px;
-    overflow-y: auto;
-  }
-  .overlay h2 { font-size: 16px; }
-  .overlay-text {
-    font-size: 11px;
-    max-width: 40ch;
-  }
-  .controls { --key: 18px; gap: 10px; }
-  .action { padding: 7px 16px; font-size: 12px; }
-  .modal-panel { padding: 8px 10px; gap: 6px; }
-  .modal-panel h2 { font-size: 13px; }
-  .rules { font-size: 11px; gap: 2px; }
 }
 
-/* Narrow phones: keep the whole HUD on one row. */
+/* Touch layouts: deck visible, HUD chips move into the deck (see layout.ts). */
+@media (pointer: coarse), (max-width: 700px) {
+  :root {
+    --chrome: 340px;
+  }
+  .deck {
+    display: flex;
+  }
+  .controls {
+    --key: 21px;
+    gap: 12px;
+  }
+  .overlay {
+    gap: 6px;
+    padding: 14px;
+  }
+  .modal-panel {
+    padding: 12px;
+    gap: 8px;
+  }
+  .foot {
+    white-space: nowrap;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+}
+
+/* Short phones: smaller deck so the board keeps its size. */
+@media (pointer: coarse) and (max-height: 680px), (max-width: 700px) and (max-height: 680px) {
+  :root {
+    --chrome: 310px;
+    --arm: 48px;
+    --ab: 50px;
+  }
+  .handheld {
+    gap: 8px;
+    padding: 12px;
+  }
+}
+
+/* Very narrow phones (320px class): compact deck and frame. */
+@media (max-width: 340px) {
+  :root {
+    --arm: 48px;
+    --ab: 50px;
+  }
+  body {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+  .handheld {
+    padding: 10px;
+    border-radius: 20px;
+  }
+  .deck {
+    gap: 8px;
+    padding-inline: 2px;
+  }
+}
+
+/* Narrow phones: keep the HUD on one row and the footer on two lines. */
 @media (max-width: 480px) {
   .hud {
     gap: 8px;
@@ -665,14 +820,94 @@ button {
   .stat dd {
     font-size: 16px;
   }
-  .hud-buttons {
-    gap: 4px;
+}
+
+@media (max-width: 400px) {
+  .foot {
+    font-size: 8.5px;
+    letter-spacing: 0.03em;
   }
-  .chip {
-    width: 30px;
-    height: 28px;
+  /* Small boards: tighter start screen so mascot, legend and Start all fit. */
+  .overlay {
+    gap: 4px;
+    padding: 10px;
+  }
+  .overlay .eyebrow {
+    display: none;
+  }
+  .overlay-text {
     font-size: 12px;
   }
+  .controls {
+    --key: 19px;
+    gap: 10px;
+  }
+  .action {
+    margin-top: 2px;
+    padding: 8px 18px;
+  }
+}
+
+/* Tablets: a roomier handheld. */
+@media (pointer: coarse) and (min-width: 768px) {
+  .handheld {
+    width: min(100%, 640px);
+  }
+  .screen {
+    max-width: 600px;
+  }
+  .deck {
+    padding-inline: 24px;
+  }
+}
+
+/* Short landscape phones: D-pad left, board centre, A/B right. */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root {
+    --chrome: 120px;
+    --arm: 50px;
+    --ab: 52px;
+  }
+  body {
+    padding-top: max(6px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+  .handheld {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "hud hud hud"
+      "dpad screen right"
+      "foot foot foot";
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .hud { grid-area: hud; padding: 0; }
+  .screen { grid-area: screen; }
+  .deck { display: contents; }
+  .dpad { grid-area: dpad; justify-self: center; }
+  .deck-right { grid-area: right; justify-self: center; }
+  .foot { grid-area: foot; font-size: 9px; }
+  .foot p { margin: 0; }
+  /* Not enough height for the mascot; keep title, controls and Start in view. */
+  .mascot { display: none; }
+  .overlay {
+    gap: 4px;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  .overlay h2 { font-size: 16px; }
+  .overlay-text {
+    font-size: 11px;
+    max-width: 40ch;
+  }
+  .controls { --key: 18px; gap: 10px; }
+  .action { padding: 7px 16px; font-size: 12px; }
+  .modal-panel { padding: 8px 10px; gap: 6px; }
+  .modal-panel h2 { font-size: 13px; }
+  .rules { font-size: 11px; gap: 2px; }
 }
 
 /* Reduced motion: keep feedback, drop movement. */
@@ -692,7 +927,8 @@ button {
   .dpad-btn.pressed,
   .dpad-btn:active,
   .action:active,
-  .chip:active {
+  .chip:active,
+  .deck .chip:active {
     transform: none;
   }
 }

@@ -88,6 +88,7 @@ export class Hud {
     this.pauseButton.disabled = status !== 'running' && status !== 'paused';
     this.pauseButton.textContent = status === 'paused' ? '▶' : '❚❚';
     this.pauseButton.setAttribute('aria-label', status === 'paused' ? 'Resume' : 'Pause');
+    this.pauseButton.dataset.deckLabel = status === 'paused' ? 'A · Resume' : 'A · Pause';
 
     if (this.openTimer !== null) window.clearTimeout(this.openTimer);
     this.openTimer = null;
