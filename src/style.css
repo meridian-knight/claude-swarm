@@ -801,8 +801,9 @@ body[data-layout="touch"] #overlay-controls {
 }
 
 body[data-layout="touch"] .action {
-  min-height: 46px;
-  min-width: 60%;
+  min-height: 44px;
+  min-width: 44%;
+  padding: 9px 20px;
 }
 
 /* Breakpoints ------------------------------------------------------ */
