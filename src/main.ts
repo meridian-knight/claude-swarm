@@ -11,8 +11,9 @@ import {
 } from './game/game';
 import { defaultRng, seededRng, type Rng } from './game/rng';
 import type { Direction, GameState, Point, StepResult } from './game/types';
-import { GameAudio } from './ui/audio';
+import { GameAudio, type AudioState } from './ui/audio';
 import { Effects } from './ui/effects';
+import { Haptics, type VibratePattern } from './ui/haptics';
 import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
@@ -35,6 +36,10 @@ declare global {
       tokenFrame(): 0 | 1;
       particleCount(): number;
       frameStats(): { avgMs: number; maxMs: number; samples: number };
+      audioState(): AudioState;
+      suspendAudio(): Promise<void>;
+      hapticsSupported(): boolean;
+      lastVibrate(): VibratePattern | null;
     };
   }
 }
@@ -56,12 +61,12 @@ if (!dpad) throw new Error('Missing d-pad');
 const hud = new Hud();
 bindLayout({
   hudButtons: document.querySelector<HTMLElement>('.hud-buttons') as HTMLElement,
-  deckAb: document.getElementById('deck-ab') as HTMLElement,
-  deckPills: document.getElementById('deck-pills') as HTMLElement,
+  deckLeft: document.getElementById('deck-left') as HTMLElement,
   pause: hud.pauseButton,
-  help: hud.muteButton.ownerDocument.getElementById('help-btn') as HTMLButtonElement,
+  help: document.getElementById('help-btn') as HTMLButtonElement,
   mute: hud.muteButton,
 });
+const haptics = new Haptics();
 const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
 const effects = new Effects(effectsLayer, canvas, GRID_COLS);
 const audio = new GameAudio(loadMuted());
@@ -116,6 +121,7 @@ function apply(result: StepResult): void {
         const head = state.bots[0];
         if (head) effects.spawned(head);
         audio.play('eat');
+        haptics.spawn();
         if (state.score > best) {
           best = state.score;
           saveBest(best);
@@ -131,12 +137,14 @@ function apply(result: StepResult): void {
       case 'over':
         overlayDelay = OVER_OVERLAY_DELAY_MS;
         audio.play('over');
+        haptics.over();
         break;
       case 'won':
         overlayDelay = WON_OVERLAY_DELAY_MS;
         audio.play('won');
         break;
       case 'moved':
+        if (state.dir !== prev.dir) haptics.turn();
         break;
     }
   }
@@ -268,6 +276,10 @@ if (params.has('test')) {
     lastTokenDraw: () => renderer.lastToken,
     tokenFrame: () => renderer.lastTokenFrame,
     particleCount: () => visual.particles.length,
+    audioState: () => audio.state,
+    suspendAudio: () => audio.suspendForTest(),
+    hapticsSupported: () => haptics.supported,
+    lastVibrate: () => haptics.lastPattern,
     frameStats() {
       const samples = frameTimes.length;
       const avgMs = samples ? frameTimes.reduce((a, b) => a + b, 0) / samples : 0;

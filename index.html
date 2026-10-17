@@ -61,8 +61,8 @@
           <div class="stat"><dt>Bots</dt><dd id="bots">1</dd></div>
         </dl>
         <div class="hud-buttons">
-          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play" data-deck-label="B · Help">?</button>
-          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" data-deck-label="A · Pause" disabled>❚❚</button>
+          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play" data-deck-label="Help">?</button>
+          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" data-deck-label="Pause" disabled>❚❚</button>
           <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound" data-deck-label="Sound">🔊</button>
         </div>
       </header>
@@ -84,6 +84,7 @@
       </section>
 
       <section class="deck" id="deck" aria-label="Touch controls">
+        <div class="deck-left" id="deck-left"></div>
         <nav class="dpad" aria-label="Direction pad">
           <button type="button" class="dpad-btn up" data-dir="up" aria-label="Up">▲</button>
           <button type="button" class="dpad-btn left" data-dir="left" aria-label="Left">◀</button>
@@ -91,10 +92,6 @@
           <button type="button" class="dpad-btn right" data-dir="right" aria-label="Right">▶</button>
           <button type="button" class="dpad-btn down" data-dir="down" aria-label="Down">▼</button>
         </nav>
-        <div class="deck-right">
-          <div class="ab" id="deck-ab"></div>
-          <div class="pill-row" id="deck-pills"></div>
-        </div>
       </section>
 
         <div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>

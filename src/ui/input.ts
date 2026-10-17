@@ -84,38 +84,72 @@ export function bindInput(
     { passive: false },
   );
 
-  // D-pad: react on pointerdown so taps feel instant. Each pointer is tracked
-  // so a held arm never repeats and a near-simultaneous second arm (a thumb
-  // catching two arms) is ignored instead of queuing a second turn.
-  const held = new Map<number, { dir: Direction; at: number }>();
+  // D-pad: the whole pad square is the touch surface, so corners and the
+  // gaps around the visible cross all count. The direction is the dominant
+  // axis from the pad centre; the centre and the exact diagonals are dead so
+  // a thumb can never produce two turns from one touch. Sliding the thumb
+  // onto another arm while held turns again (rapid turns), a held arm never
+  // repeats, and a second finger landing within CHORD_MS is ignored.
+  const pad = elements.dpad;
+  const held = new Map<number, { dir: Direction | null; at: number }>();
+  const resolve = (e: PointerEvent): Direction | null => {
+    const r = pad.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+    const dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    if (Math.max(ax, ay) < 0.18) return null; // dead centre
+    if (Math.abs(ax - ay) < 0.2 * Math.max(ax, ay)) return null; // diagonal band
+    return ax > ay ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+  };
+  const showActive = (): void => {
+    const active = [...held.values()].map((h) => h.dir).find((d) => d !== null) ?? null;
+    if (active) pad.dataset.active = active;
+    else delete pad.dataset.active;
+  };
   const release = (e: PointerEvent): void => {
     held.delete(e.pointerId);
+    showActive();
   };
-  elements.dpad.addEventListener('pointerdown', (e) => {
-    if (handlers.isBlocked()) return;
+  pad.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
-    const dir = target?.dataset.dir as Direction | undefined;
-    if (!dir) return;
     e.preventDefault();
+    handlers.onGesture();
+    if (handlers.isBlocked()) return;
     const now = performance.now();
     let chord = false;
     for (const other of held.values()) {
-      if (other.dir !== dir && now - other.at < CHORD_MS) chord = true;
+      if (now - other.at < CHORD_MS) chord = true;
     }
+    const dir = chord ? null : resolve(e);
     held.set(e.pointerId, { dir, at: now });
     try {
-      target?.setPointerCapture(e.pointerId);
+      pad.setPointerCapture(e.pointerId);
     } catch {
       // Older browsers: capture is a nicety, not a requirement.
     }
-    handlers.onGesture();
-    if (!chord) steer(dir);
+    showActive();
+    if (dir) steer(dir);
   });
-  elements.dpad.addEventListener('pointerup', release);
-  elements.dpad.addEventListener('pointercancel', release);
-  elements.dpad.addEventListener('lostpointercapture', release);
-  elements.dpad.addEventListener('contextmenu', (e) => e.preventDefault());
+  pad.addEventListener('pointermove', (e) => {
+    const entry = held.get(e.pointerId);
+    if (!entry || handlers.isBlocked()) return;
+    const dir = resolve(e);
+    if (dir && dir !== entry.dir) {
+      entry.dir = dir;
+      showActive();
+      steer(dir);
+    }
+  });
+  pad.addEventListener('pointerup', release);
+  pad.addEventListener('pointercancel', release);
+  pad.addEventListener('lostpointercapture', release);
+  pad.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Safari grants user activation for audio on pointerup/touchend rather than
+  // pointerdown, so unlock again on the way up too.
+  window.addEventListener('pointerup', () => handlers.onGesture(), { passive: true });
+  window.addEventListener('touchend', () => handlers.onGesture(), { passive: true });
   // Keyboard activation of d-pad buttons (Enter/Space on a focused button):
   // a keyboard click has detail 0 in Chromium, Firefox and Safari.
   elements.dpad.addEventListener('click', (e) => {

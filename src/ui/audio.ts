@@ -1,9 +1,13 @@
 export type SoundName = 'start' | 'eat' | 'pause' | 'resume' | 'over' | 'won';
 
+export type AudioState = 'none' | 'running' | 'suspended' | 'closed' | 'interrupted' | 'unavailable';
+
 /** Tiny WebAudio synth: every sound is a couple of oscillator blips, no assets. */
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private muted: boolean;
+  private unavailable = false;
+  private kicked = false;
 
   constructor(muted: boolean) {
     this.muted = muted;
@@ -13,27 +17,66 @@ export class GameAudio {
     return this.muted;
   }
 
+  /** Current context state, for diagnostics and tests. */
+  get state(): AudioState {
+    if (this.unavailable) return 'unavailable';
+    if (!this.ctx) return 'none';
+    return this.ctx.state as AudioState;
+  }
+
   setMuted(muted: boolean): void {
     this.muted = muted;
   }
 
-  /** Must be called from a user gesture before anything can play. */
+  /**
+   * Must be called from a user gesture before anything can play. Safe to call
+   * on every gesture: it creates the context once, then resumes it whenever
+   * the browser has suspended or interrupted it (iOS after a call, tab
+   * switches, or a context created from an event Safari does not count as
+   * activation). Resuming is asynchronous; sounds scheduled meanwhile still play.
+   */
   unlock(): void {
-    if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume().catch(() => undefined);
-      return;
+    if (this.unavailable) return;
+    if (!this.ctx) {
+      const Ctor =
+        window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) {
+        this.unavailable = true;
+        return;
+      }
+      try {
+        this.ctx = new Ctor();
+      } catch {
+        this.ctx = null;
+        this.unavailable = true;
+        return;
+      }
     }
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
-    try {
-      this.ctx = new Ctor();
-    } catch {
-      this.ctx = null;
+    const ctx = this.ctx;
+    if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+    if (!this.kicked) {
+      // Older iOS only unlocks output once a (silent) buffer has been played.
+      this.kicked = true;
+      try {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      } catch {
+        // Not fatal: the oscillators still work on browsers without this quirk.
+      }
     }
+  }
+
+  /** Test-only helper to simulate the browser suspending audio. */
+  suspendForTest(): Promise<void> {
+    return this.ctx ? this.ctx.suspend() : Promise.resolve();
   }
 
   play(name: SoundName): void {
     if (this.muted || !this.ctx) return;
+    if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => undefined);
     const t = this.ctx.currentTime;
     switch (name) {
       case 'start':

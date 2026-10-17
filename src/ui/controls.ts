@@ -31,17 +31,18 @@ export function keyboardControlsMarkup(): string {
 export function touchControlsMarkup(): string {
   return `
     <div class="control-group">
+      <span class="keys-row">
+        <span class="key key-round key-a" role="img" aria-label="Pause button">❚❚</span>
+        <span class="key key-round" role="img" aria-label="Help button">?</span>
+        <span class="key key-round" role="img" aria-label="Sound button">♪</span>
+      </span>
+      <span class="control-label">Left: pause · help · sound</span>
+    </div>
+    <div class="control-group">
       <span class="mini-dpad" role="img" aria-label="Direction pad">
         <i class="u"></i><i class="l"></i><i class="c"></i><i class="r"></i><i class="d"></i>
       </span>
-      <span class="control-label">D-pad (or swipe)</span>
-    </div>
-    <div class="control-group">
-      <span class="keys-row">
-        <span class="key key-round key-a" role="img" aria-label="A button">❚❚</span>
-        <span class="key key-round" role="img" aria-label="B button">?</span>
-      </span>
-      <span class="control-label">A pause · B help</span>
+      <span class="control-label">Right: D-pad (or swipe)</span>
     </div>
     <div class="control-group">
       <span class="key key-wide">Start</span>

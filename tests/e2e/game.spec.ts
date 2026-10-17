@@ -89,10 +89,15 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   const overlay = page.locator('#overlay');
   await expect(overlay).toBeVisible();
   await expect(overlay.locator('h2')).toHaveText('Claude Swarm');
-  if (isMobile) {
+  const vp = page.viewportSize()!;
+  if (isMobile && vp.width > vp.height && vp.height < 520) {
+    // Short landscape: the legend lives in the help dialog only.
+    await expect(overlay.locator('#overlay-controls')).toBeHidden();
+    await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
+  } else if (isMobile) {
     await expect(overlay.locator('.mini-dpad')).toBeVisible();
-    await expect(overlay.locator('#overlay-controls')).toContainText('D-pad');
-    await expect(overlay.locator('#overlay-controls')).toContainText('A pause');
+    await expect(overlay.locator('#overlay-controls')).toContainText('Right: D-pad');
+    await expect(overlay.locator('#overlay-controls')).toContainText('Left: pause · help · sound');
   } else {
     await expect(overlay.locator('.keys-cluster')).toHaveCount(2);
     await expect(overlay.locator('.key')).toHaveCount(10);
@@ -441,7 +446,7 @@ test.describe('instructions and mascot', () => {
     const vh = viewport!.height;
     const shortLandscape = vh < 520 && vw > vh;
     const required = shortLandscape
-      ? ['#overlay-title', '#overlay-controls', '#action-btn']
+      ? ['#overlay-title', '#action-btn']
       : ['#mascot', '#overlay-title', '#overlay-controls', '#action-btn'];
     for (const sel of required) {
       const box = await page.locator(sel).boundingBox();
@@ -613,6 +618,31 @@ test.describe('mobile readiness', () => {
       const up = (await page.locator('[data-dir="up"]').boundingBox())!;
       expect(pause.y, 'pause sits at deck level, not in the HUD').toBeGreaterThan(up.y - 80);
       expect(await page.locator('.hud-buttons .chip').count()).toBe(0);
+
+      // Right-thumb layout: D-pad entirely in the right half, utilities in the left half, no overlap.
+      const pad = (await page.locator('.dpad').boundingBox())!;
+      const utils = (await page.locator('.deck-left').boundingBox())!;
+      const boardBox = (await page.locator('#board').boundingBox())!;
+      expect(pad.x + pad.width / 2, 'D-pad centred in the right third').toBeGreaterThanOrEqual(vw * 0.6);
+      const frame = (await page.locator('.handheld').boundingBox())!;
+      expect(pad.x + pad.width, 'D-pad flush with the frame\'s right side').toBeGreaterThanOrEqual(frame.x + frame.width - 40);
+      expect(utils.x + utils.width / 2, 'utilities centred in the left quarter').toBeLessThanOrEqual(vw * 0.3);
+      expect(utils.x + utils.width, 'no overlap between utilities and D-pad').toBeLessThanOrEqual(pad.x);
+      expect(pad.x + pad.width, 'D-pad inside the viewport').toBeLessThanOrEqual(vw - 6);
+      expect(utils.x, 'utilities inside the viewport').toBeGreaterThanOrEqual(6);
+      if (vw <= vh) expect(pad.y, 'controls do not cover the board').toBeGreaterThanOrEqual(boardBox.y + boardBox.height - 1);
+      // Utilities share one vertical axis with equal gaps.
+      const centres: number[] = [];
+      const tops: number[] = [];
+      for (const sel of ['#pause-btn', '#help-btn', '#mute-btn']) {
+        const b = (await page.locator(sel).boundingBox())!;
+        centres.push(b.x + b.width / 2);
+        tops.push(b.y);
+      }
+      expect(Math.max(...centres) - Math.min(...centres)).toBeLessThan(1.5);
+      const gap1 = tops[1]! - tops[0]!;
+      const gap2 = tops[2]! - tops[1]!;
+      expect(Math.abs(gap1 - gap2)).toBeLessThan(1.5);
     } else {
       await expect(page.locator('body')).toHaveAttribute('data-layout', 'desktop');
       await expect(page.locator('.deck')).toBeHidden();
@@ -747,6 +777,99 @@ test.describe('mobile readiness', () => {
     expect(board.y + board.height).toBeLessThanOrEqual(size.height + 0.5);
     const doc = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
     expect(doc.sw).toBeLessThanOrEqual(doc.cw);
+  });
+
+  test('desktop: centred when tall, top-aligned and scrollable when short', async ({ page, viewport, hasTouch }) => {
+    test.skip(hasTouch, 'desktop layout only');
+    const vh = viewport!.height;
+    const box = (await page.locator('.handheld').boundingBox())!;
+    const topGap = box.y;
+    const bottomGap = vh - (box.y + box.height);
+    if (vh >= 720) {
+      expect(Math.abs(topGap - bottomGap), 'vertically centred').toBeLessThan(2);
+    } else {
+      expect(topGap, 'top-aligned on short windows').toBeLessThan(24);
+    }
+    const centreX = box.x + box.width / 2;
+    expect(Math.abs(centreX - viewport!.width / 2), 'horizontally centred').toBeLessThan(2);
+    const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflowX).toBeLessThanOrEqual(0);
+  });
+
+  test('D-pad corners and slides resolve to a single direction each', async ({ page, hasTouch, browserName }) => {
+    test.skip(!hasTouch || browserName !== 'chromium', 'uses CDP touch injection');
+    const cdp = await page.context().newCDPSession(page);
+    await page.locator('#action-btn').tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    const pad = (await page.locator('.dpad').boundingBox())!;
+    const cx = pad.x + pad.width / 2;
+    const cy = pad.y + pad.height / 2;
+    const hw = pad.width / 2;
+    const touch = async (points: Array<{ x: number; y: number }>, type: 'touchStart' | 'touchMove' | 'touchEnd') =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map((p, i) => ({ ...p, id: i })) });
+
+    // Near the top-right corner but clearly more "up" than "right": one turn, up.
+    await touch([{ x: cx + hw * 0.25, y: cy - hw * 0.65 }], 'touchStart');
+    await touch([], 'touchEnd');
+    await expect.poll(async () => (await getState(page)).dir).toBe('up');
+
+    // Exact diagonal corner: ambiguous, ignored.
+    await touch([{ x: cx + hw * 0.7, y: cy + hw * 0.7 }], 'touchStart');
+    await touch([], 'touchEnd');
+    await page.waitForTimeout(300);
+    expect((await getState(page)).queue).toEqual([]);
+    expect((await getState(page)).dir).toBe('up');
+
+    // Dead centre: ignored.
+    await touch([{ x: cx, y: cy }], 'touchStart');
+    await touch([], 'touchEnd');
+    expect((await getState(page)).queue).toEqual([]);
+
+    // Slide: press the left arm, slide down to the bottom arm, release -> left, then down.
+    await touch([{ x: cx - hw * 0.7, y: cy }], 'touchStart');
+    await page.waitForTimeout(60);
+    await touch([{ x: cx - hw * 0.2, y: cy + hw * 0.7 }], 'touchMove');
+    await touch([], 'touchEnd');
+    await expect.poll(async () => (await getState(page)).dir, { timeout: 3_000 }).toBe('down');
+    expect((await getState(page)).status).toBe('running');
+    expect(await page.locator('.dpad').getAttribute('data-active')).toBeNull();
+  });
+
+  test('audio unlocks on Start and recovers after a suspension', async ({ page, hasTouch }) => {
+    type AudioWindow = Window & { __swarm: { audioState(): string; suspendAudio(): Promise<void> } };
+    const audioState = () => page.evaluate(() => (window as unknown as AudioWindow).__swarm.audioState());
+    expect(await audioState()).toBe('none');
+    if (hasTouch) await page.locator('#action-btn').tap();
+    else await page.keyboard.press('Enter');
+    await expect.poll(audioState).toBe('running');
+    await page.evaluate(() => (window as unknown as AudioWindow).__swarm.suspendAudio());
+    await expect.poll(audioState).toBe('suspended');
+    if (hasTouch) await page.locator('#pause-btn').tap();
+    else await page.keyboard.press('Space');
+    await expect.poll(audioState).toBe('running');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
+  });
+
+  test('haptics fire only where supported', async ({ page, hasTouch }) => {
+    type HapticWindow = Window & { __swarm: { hapticsSupported(): boolean; lastVibrate(): number | number[] | null } };
+    const supported = await page.evaluate(() => (window as unknown as HapticWindow).__swarm.hapticsSupported());
+    const last = () => page.evaluate(() => (window as unknown as HapticWindow).__swarm.lastVibrate());
+    expect(supported).toBe(hasTouch);
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    if (hasTouch) await page.locator('[data-dir="up"]').tap();
+    else await page.keyboard.press('ArrowUp');
+    await expect.poll(async () => (await getState(page)).dir).toBe('up');
+    if (hasTouch) await expect.poll(last).toBe(8);
+    else expect(await last()).toBeNull();
+    const pause = hasTouch ? () => page.locator('#pause-btn').tap() : () => page.keyboard.press('Space');
+    await placeTokenAhead(page, pause, pause);
+    await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
+    if (hasTouch) await expect.poll(last).toBe(15);
+    else expect(await last()).toBeNull();
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    if (hasTouch) await expect.poll(last).toEqual([30, 40, 60]);
+    else expect(await last()).toBeNull();
   });
 
   test('a 150-bot chain renders within the frame budget', async ({ page, hasTouch }, testInfo) => {
