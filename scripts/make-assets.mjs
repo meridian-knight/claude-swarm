@@ -1,13 +1,13 @@
 // Generates favicon.svg, PNG icons, favicon.ico and the 1200x630 social preview
 // from the same 12x12 pixel grids the game draws.
 // Usage: node scripts/make-assets.mjs <outDir> [previewFileName]
-// Example: npm run assets   (writes into public/, preview as social-preview-v3.png)
+// Example: npm run assets   (writes into public/, preview as social-preview-v4.png)
 import { chromium } from '@playwright/test';
 import { writeFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const out = process.argv[2] ?? 'public';
-const previewName = process.argv[3] ?? 'social-preview-v3.png';
+const previewName = process.argv[3] ?? 'social-preview-v4.png';
 mkdirSync(out, { recursive: true });
 
 const SHARED = { E: '#2a1810', M: '#160c07', G: '#ffe9d6', K: '#f7c948', A: '#f3e6cf', S: '#b8862a', C: '#f3e6cf', H: '#fff6e6', T: '#d97757', P: '#9a4f36' };
@@ -69,8 +69,7 @@ const social = `<!doctype html><html><head><meta charset="utf-8"><style>
   .tag{position:absolute;top:262px;left:0;right:0;text-align:center;font-size:30px;letter-spacing:.06em;color:#f3e6cf}
   .scene{position:absolute;left:50%;top:330px;transform:translateX(-50%);width:${sceneW}px;height:${12 * S}px}
   .scene svg{width:100%;height:100%;image-rendering:pixelated}
-  .foot{position:absolute;bottom:78px;left:0;right:0;text-align:center;font-size:22px;letter-spacing:.2em;color:#9b8b78;text-transform:uppercase}
-  .brand-name{text-transform:none}
+  .foot{position:absolute;bottom:78px;left:0;right:0;text-align:center;font-size:20px;letter-spacing:.18em;color:#9b8b78;text-transform:uppercase}
   .grid{position:absolute;inset:46px;border-radius:26px;background:repeating-linear-gradient(90deg,transparent 0 47px,rgba(255,255,255,.025) 47px 48px),repeating-linear-gradient(0deg,transparent 0 47px,rgba(255,255,255,.025) 47px 48px)}
 </style></head><body>
   <div class="glow"></div><div class="grid"></div><div class="frame"></div>
@@ -78,7 +77,7 @@ const social = `<!doctype html><html><head><meta charset="utf-8"><style>
   <h1>Claude Swarm</h1>
   <div class="tag">Consume tokens. Spawn agents. Grow your swarm.</div>
   <div class="scene">${svgDoc(chain.length * 12 + 18, 12, chainSvg + chipSvg)}</div>
-  <div class="foot">Unofficial fan game · <span class="brand-name">CyberSquad0 + Claude</span></div>
+  <div class="foot">Unofficial fan game · Built by Cyber Squad Zero + Claude</div>
 </body></html>`;
 
 const browser = await chromium.launch();

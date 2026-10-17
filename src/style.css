@@ -773,9 +773,17 @@ button {
   margin: 2px 0;
 }
 
-/* Brand names keep their own casing inside uppercase lines. */
-.brand-name {
-  text-transform: none;
+/* Creator credit link in the footer. */
+.credit-link {
+  color: var(--cream);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(243, 230, 207, 0.35);
+}
+
+.credit-link:hover,
+.credit-link:focus-visible {
+  color: var(--orange-light);
+  border-bottom-color: var(--orange-light);
 }
 
 /* On touch layouts the D-pad appears once a game starts; on the start screen

@@ -116,7 +116,7 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
   expect(hudMascot.width).toBeGreaterThanOrEqual(20);
   if (!(isMobile && vp.width > vp.height && vp.height < 520)) await expect(page.locator('#mascot')).toBeVisible();
   await expect(page.locator('#action-btn')).toHaveText('Start');
-  await expect(page.locator('.foot')).toContainText('A fan game developed by CyberSquad0 + Claude.');
+  await expect(page.locator('.foot')).toContainText('A FAN GAME BUILT BY CYBER SQUAD ZERO + CLAUDE.');
   await expect(page.getByText('Not affiliated with or endorsed by Anthropic.')).toBeVisible();
   await expect(page.locator('.foot')).not.toContainText(/arrows|wasd|space|enter/i);
   await expect(page.locator('#score')).toHaveText('0');
@@ -380,7 +380,7 @@ test.describe('visual polish safety', () => {
 
 test.describe('instructions and mascot', () => {
   const footerVisible = async (page: Page): Promise<void> => {
-    await expect(page.locator('.foot')).toContainText('A fan game developed by CyberSquad0 + Claude.');
+    await expect(page.locator('.foot')).toContainText('A FAN GAME BUILT BY CYBER SQUAD ZERO + CLAUDE.');
     await expect(page.getByText('Not affiliated with or endorsed by Anthropic.')).toBeVisible();
   };
 
@@ -999,12 +999,23 @@ test.describe('release checks', () => {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(canonical).toMatch(/^https:\/\/[^/]+\/claude-swarm\/$/);
     const og = await page.locator('meta[property="og:image"]').getAttribute('content');
-    expect(og).toBe(`${canonical}social-preview-v3.png`);
+    expect(og).toBe(`${canonical}social-preview-v4.png`);
     expect(await page.locator('meta[name="twitter:image"]').getAttribute('content')).toBe(og);
     expect(await page.locator('meta[property="og:image:alt"]').getAttribute('content')).toContain('CyberSquad0 + Claude');
     expect(description).toContain('Built by CyberSquad0 + Claude.');
-    expect(await page.content()).not.toContain('social-preview-v2.png');
-    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview-v3.png', 'robots.txt']) {
+    // Brand forms: uppercase contexts use CYBER SQUAD ZERO literally, so CSS never renders CYBERSQUAD0.
+    const footer = await page.locator('.foot').evaluate((el) => ({ rendered: (el as HTMLElement).innerText, transform: getComputedStyle(el).textTransform }));
+    expect(footer.transform).toBe('uppercase');
+    expect(footer.rendered).toContain('CYBER SQUAD ZERO + CLAUDE');
+    expect(footer.rendered).not.toMatch(/CYBERSQUAD0|NORTH OF ZERO/);
+    expect(footer.rendered).toContain('NOT AFFILIATED WITH OR ENDORSED BY ANTHROPIC.');
+    const credit = page.locator('.foot a.credit-link');
+    await expect(credit).toHaveAttribute('href', 'https://www.cs0.dev');
+    await expect(credit).toHaveAttribute('rel', /noopener/);
+    const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
+    expect(ld.author).toEqual({ '@type': 'Organization', name: 'CyberSquad0', url: 'https://www.cs0.dev' });
+    expect(await page.content()).not.toContain('social-preview-v3.png');
+    for (const icon of ['favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview-v4.png', 'robots.txt']) {
       const res = await page.request.get(new URL(`./${icon}`, page.url()).toString());
       expect(res.status(), icon).toBe(200);
     }

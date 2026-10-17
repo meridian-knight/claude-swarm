@@ -6,7 +6,7 @@
 
 <p align="center"><strong>Consume tokens. Spawn agents. Grow your swarm.</strong></p>
 
-<p align="center">A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile.</p>
+<p align="center">A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile.<br />Built by <a href="https://www.cs0.dev">CyberSquad0</a> + Claude.</p>
 
 <p align="center">
   <a href="https://meridian-knight.github.io/claude-swarm/"><strong>▶ Play now: meridian-knight.github.io/claude-swarm</strong></a>
@@ -71,6 +71,6 @@ To roll back, revert the offending commits on `main` and push; Pages keeps servi
 
 ## Credits
 
-A fan game developed by **CyberSquad0** + **Claude**.
+Built by **[CyberSquad0](https://www.cs0.dev)** + **Claude**. The game lives at https://meridian-knight.github.io/claude-swarm/.
 
 Not affiliated with or endorsed by Anthropic. Not affiliated with Nokia.
