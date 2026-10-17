@@ -41,7 +41,8 @@ async function grow(page, n, pause, resume) {
   await grow(page, 5, () => page.locator('#pause-btn').tap(), () => page.locator('#pause-btn').tap());
   await page.locator('[data-dir="left"]').tap();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${out}/screenshot-mobile.png`, clip: { x: 0, y: 0, width: 412, height: 839 } });
+  const frame = await page.locator('.handheld').boundingBox();
+  await page.screenshot({ path: `${out}/screenshot-mobile.png`, clip: { x: 0, y: 0, width: 412, height: Math.ceil(frame.y + frame.height + 12) } });
   await ctx.close();
 }
 await browser.close();
