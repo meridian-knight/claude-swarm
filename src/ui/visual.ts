@@ -16,6 +16,8 @@ export interface Particle {
   born: number;
   life: number;
   colour: string;
+  /** Side length in sprite pixels. */
+  size: 1 | 2;
 }
 
 export interface Bump {
@@ -26,12 +28,15 @@ export interface Bump {
 export const BUMP_MS = 150;
 export const SQUASH_MS = 150;
 export const FLASH_MS = 260;
+/** Collection burst ends together with the flash ring. */
+export const BURST_MS = FLASH_MS;
 export const BLINK_MS = 160;
 export const DEATH_DIM_START_MS = 150;
 export const SHAKE_MS = 120;
 export const WIN_CHOMP_MS = 500;
 
-const SPARK_COLOURS = ['#f3e6cf', '#f7c948', '#f4a97a', '#f3e6cf', '#f7c948', '#d97757'];
+/** Chip palette, so the burst reads as the chip breaking apart. */
+const SPARK_COLOURS = ['#f3e6cf', '#f7c948', '#d97757', '#9a4f36', '#fff6e6', '#f7c948', '#d97757', '#f3e6cf'];
 
 export class VisualState {
   prevBots: readonly Point[] = [];
@@ -79,7 +84,7 @@ export class VisualState {
           this.spawnedAt = now;
           this.chompTick = next.tick;
           const head = next.bots[0];
-          if (head && !this.reducedMotion) this.burst(head, now, 6, 220);
+          if (head && !this.reducedMotion) this.burst(head, now, 8, BURST_MS);
           break;
         }
         case 'over':
@@ -93,7 +98,7 @@ export class VisualState {
           if (!this.reducedMotion) {
             for (let k = 0; k < 8; k++) {
               const cell = { x: Math.floor(Math.random() * next.cols), y: Math.floor(Math.random() * next.rows) };
-              this.burst(cell, now + k * 90, 6, 320);
+              this.burst(cell, now + k * 90, 8, 320);
             }
           }
           break;
@@ -122,6 +127,7 @@ export class VisualState {
         born,
         life,
         colour: SPARK_COLOURS[k % SPARK_COLOURS.length]!,
+        size: k % 2 === 0 ? 2 : 1,
       });
     }
   }

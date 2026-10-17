@@ -17,6 +17,17 @@ const COLOURS = {
   flash: '#f4a97a',
 };
 
+const TOKEN_PULSE_MS = 500;
+const TWINKLE_EVERY_MS = 3200;
+const TWINKLE_MS = 300;
+/** The chip's four clipped corners, in sprite pixels. */
+const TWINKLE_SPOTS: readonly Point[] = [
+  { x: 2, y: 2 },
+  { x: 9, y: 2 },
+  { x: 9, y: 9 },
+  { x: 2, y: 9 },
+];
+
 const VIGNETTE_IDLE = 0.6;
 const VIGNETTE_PLAY = 0.38;
 const VIGNETTE_FADE_MS = 300;
@@ -32,6 +43,10 @@ export class Renderer {
   private vignette: HTMLCanvasElement | null = null;
   /** Where the head was last drawn, in cell units (for tests). */
   lastHead: Point = { x: 0, y: 0 };
+  /** Where the token was last drawn, in cell units, or null (for tests). */
+  lastToken: Point | null = null;
+  /** Token pulse frame last drawn (for tests). */
+  lastTokenFrame: 0 | 1 = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -139,15 +154,30 @@ export class Renderer {
       ctx.fillStyle = p.colour;
       const px = (p.x + (p.vx * age) / 1000) * cell;
       const py = (p.y + (p.vy * age) / 1000) * cell + k * k * cell * 0.4;
-      ctx.fillRect(Math.round(px / scale) * scale, Math.round(py / scale) * scale, scale, scale);
+      const side = p.size * scale;
+      ctx.fillRect(Math.round(px / scale) * scale, Math.round(py / scale) * scale, side, side);
     }
     ctx.globalAlpha = 1;
 
     if (state.token) {
-      const pulse = (Math.floor(now / 260) % 2) as 0 | 1;
-      const bob = !reduced && Math.floor(now / 520) % 2 === 1 ? -scale : 0;
+      const { x, y } = state.token;
+      const pulse = reduced ? 0 : ((Math.floor(now / TOKEN_PULSE_MS) % 2) as 0 | 1);
       const sprite = this.sprite(`token:${pulse}:${scale}`, () => tokenSprite(pulse, scale));
-      ctx.drawImage(sprite, state.token.x * cell, state.token.y * cell + bob);
+      ctx.drawImage(sprite, x * cell, y * cell);
+      this.lastToken = { x, y };
+      this.lastTokenFrame = pulse;
+
+      // Occasional twinkle: one cream pixel hopping around the clipped corners.
+      if (!reduced) {
+        const phase = (now + (x * 97 + y * 31) * 13) % TWINKLE_EVERY_MS;
+        if (phase < TWINKLE_MS) {
+          const spot = TWINKLE_SPOTS[Math.floor(phase / 100) % TWINKLE_SPOTS.length]!;
+          ctx.fillStyle = '#fff6e6';
+          ctx.fillRect(x * cell + spot.x * scale, y * cell + spot.y * scale, scale, scale);
+        }
+      }
+    } else {
+      this.lastToken = null;
     }
 
     const n = state.bots.length;

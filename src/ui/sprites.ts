@@ -29,8 +29,13 @@ const SHARED: Readonly<Record<string, string>> = {
   M: '#160c07', // open mouth
   G: '#ffe9d6', // eye glint
   K: '#f7c948', // token core
-  A: '#f3e6cf', // token arm / antenna
-  S: '#b8862a', // token spark / halo
+  A: '#f3e6cf', // antenna / cream
+  S: '#b8862a', // halo / twinkle
+  C: '#f3e6cf', // chip body
+  H: '#fff6e6', // chip highlight
+  T: '#d97757', // chip outline / spark arms
+  P: '#9a4f36', // chip pins
+  y: '#ffd45a', // bright core (pulse frame)
 };
 
 /** Body colours per tone: outline, fill, highlight, legs, eyelid. */
@@ -167,33 +172,41 @@ export function botSprite(opts: BotSpriteOptions, scale: number): HTMLCanvasElem
   return paint(g, { ...SHARED, ...TONES[tone] }, scale);
 }
 
-/** An eight-point spark with a faint halo on its wide frame. */
+/**
+ * A small AI chip: clipped-corner square with an orange outline, warm cream
+ * body, short connector pins and a spark in the middle. Frame 1 is the pulse
+ * (brighter core, cream arms); nothing moves between frames.
+ */
 export function tokenSprite(frame: 0 | 1, scale: number): HTMLCanvasElement {
   const g = blank();
-  const reach = frame === 0 ? 3 : 4;
-  for (let i = 1; i <= reach; i++) {
-    for (const c of [5, 6]) {
-      put(g, c, 5 - i, 'A');
-      put(g, c, 6 + i, 'A');
-      put(g, 5 - i, c, 'A');
-      put(g, 6 + i, c, 'A');
-    }
+  // Outline 2..9 with clipped corners.
+  for (let i = 3; i <= 8; i++) {
+    put(g, i, 2, 'T');
+    put(g, i, 9, 'T');
+    put(g, 2, i, 'T');
+    put(g, 9, i, 'T');
   }
-  if (frame === 1) {
-    for (const c of [5, 6]) {
-      put(g, c, 0, 'S');
-      put(g, c, 11, 'S');
-      put(g, 0, c, 'S');
-      put(g, 11, c, 'S');
-    }
+  // Body.
+  for (let y = 3; y <= 8; y++) for (let x = 3; x <= 8; x++) put(g, x, y, 'C');
+  put(g, 3, 3, 'H');
+  put(g, 4, 3, 'H');
+  put(g, 3, 4, 'H');
+  // Pins: two per side.
+  for (const i of [4, 7]) {
+    put(g, i, 1, 'P');
+    put(g, i, 10, 'P');
+    put(g, 1, i, 'P');
+    put(g, 10, i, 'P');
   }
-  const diag = frame === 0 ? [2] : [2, 3];
-  for (const d of diag) {
-    put(g, 5 - d, 5 - d, 'S');
-    put(g, 6 + d, 5 - d, 'S');
-    put(g, 5 - d, 6 + d, 'S');
-    put(g, 6 + d, 6 + d, 'S');
+  // Spark: 2x2 core with 1px arms.
+  const core = frame === 1 ? 'y' : 'K';
+  const arm = frame === 1 ? 'A' : 'T';
+  for (const y of [5, 6]) for (const x of [5, 6]) put(g, x, y, core);
+  for (const c of [5, 6]) {
+    put(g, c, 3, arm);
+    put(g, c, 8, arm);
+    put(g, 3, c, arm);
+    put(g, 8, c, arm);
   }
-  for (const y of [5, 6]) for (const x of [5, 6]) put(g, x, y, 'K');
   return paint(g, SHARED, scale);
 }

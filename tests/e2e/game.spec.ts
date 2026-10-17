@@ -481,3 +481,63 @@ test.describe('instructions and mascot', () => {
     await expect(page.locator('#help')).toBeHidden();
   });
 });
+
+test.describe('chip tokens', () => {
+  type ChipWindow = Window & {
+    __swarm: {
+      getState(): SwarmState;
+      lastTokenDraw(): Point | null;
+      tokenFrame(): 0 | 1;
+      particleCount(): number;
+    };
+  };
+  const chip = (page: Page) =>
+    page.evaluate(() => {
+      const w = window as unknown as ChipWindow;
+      return { drawn: w.__swarm.lastTokenDraw(), token: w.__swarm.getState().token, frame: w.__swarm.tokenFrame(), particles: w.__swarm.particleCount() };
+    });
+
+  test('the chip is drawn exactly on the token cell and pulses', async ({ page }) => {
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    const seen = new Set<number>();
+    for (let i = 0; i < 12; i++) {
+      const c = await chip(page);
+      expect(c.drawn).toEqual(c.token);
+      seen.add(c.frame);
+      await page.waitForTimeout(120);
+    }
+    expect(seen.size).toBe(2);
+  });
+
+  test('collecting a chip bursts briefly and still spawns a bot', async ({ page, isMobile }) => {
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    const pause = isMobile ? () => page.locator('#pause-btn').tap() : () => page.keyboard.press('Space');
+    const resume = isMobile ? () => page.locator('#action-btn').tap() : () => page.keyboard.press('Space');
+    await placeTokenAhead(page, resume, pause);
+    await expect.poll(async () => (await chip(page)).particles, { timeout: 2_000 }).toBeGreaterThan(0);
+    await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
+    await expect(page.locator('[data-effect="spawned"]').first()).toBeVisible();
+    await expect.poll(async () => (await chip(page)).particles, { timeout: 1_000 }).toBe(0);
+    const after = await chip(page);
+    expect(after.token).not.toBeNull();
+    expect(after.drawn).toEqual(after.token);
+  });
+
+  test('reduced motion: chip stays on frame 0 and collection emits no particles', async ({ page, isMobile }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    for (let i = 0; i < 8; i++) {
+      expect((await chip(page)).frame).toBe(0);
+      await page.waitForTimeout(130);
+    }
+    const pause = isMobile ? () => page.locator('#pause-btn').tap() : () => page.keyboard.press('Space');
+    const resume = isMobile ? () => page.locator('#action-btn').tap() : () => page.keyboard.press('Space');
+    await placeTokenAhead(page, resume, pause);
+    await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
+    expect((await chip(page)).particles).toBe(0);
+  });
+});

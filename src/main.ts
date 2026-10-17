@@ -28,6 +28,9 @@ declare global {
       placeToken(p: Point): void;
       step(): void;
       lastDraw(): Point;
+      lastTokenDraw(): Point | null;
+      tokenFrame(): 0 | 1;
+      particleCount(): number;
       frameStats(): { avgMs: number; maxMs: number; samples: number };
     };
   }
@@ -227,6 +230,9 @@ if (params.has('test')) {
       apply(step(state, rng));
     },
     lastDraw: () => renderer.lastHead,
+    lastTokenDraw: () => renderer.lastToken,
+    tokenFrame: () => renderer.lastTokenFrame,
+    particleCount: () => visual.particles.length,
     frameStats() {
       const samples = frameTimes.length;
       const avgMs = samples ? frameTimes.reduce((a, b) => a + b, 0) / samples : 0;
