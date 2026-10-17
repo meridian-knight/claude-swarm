@@ -19,7 +19,7 @@ const TONES = {
 const blank = () => Array.from({ length: 12 }, () => Array(12).fill('.'));
 const put = (g, x, y, k) => { if (x >= 0 && y >= 0 && x < 12 && y < 12) g[y][x] = k; };
 
-function bot(kind, tone, legFrame = 0, gaze = 'centre') {
+function agent(kind, tone, legFrame = 0, gaze = 'centre') {
   const g = blank();
   for (let x = 1; x <= 10; x++) { put(g, x, 1, 'D'); put(g, x, 8, 'D'); }
   for (let y = 2; y <= 7; y++) { put(g, 0, y, 'D'); put(g, 11, y, 'D'); for (let x = 1; x <= 10; x++) put(g, x, y, 'O'); }
@@ -47,17 +47,17 @@ function chip() {
 const rects = ({ g, pal }, ox = 0, oy = 0) => g.flatMap((row, y) => row.map((k, x) => pal[k] ? `<rect x="${ox + x}" y="${oy + y}" width="1" height="1" fill="${pal[k]}"/>` : '').filter(Boolean)).join('');
 const svgDoc = (w, h, body, bg = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" shape-rendering="crispEdges">${bg}${body}</svg>`;
 
-// --- favicon.svg: the leader bot, transparent background
-const icon = svgDoc(12, 12, rects(bot('head', 'leader')));
+// --- favicon.svg: the leader agent, transparent background
+const icon = svgDoc(12, 12, rects(agent('head', 'leader')));
 writeFileSync(join(out, 'favicon.svg'), icon);
 // Opaque, rounded variant for Apple / Android home screens.
-const iconOpaque = svgDoc(12, 12, rects(bot('head', 'leader')), '<rect width="12" height="12" rx="1.5" fill="#241c16"/>');
+const iconOpaque = svgDoc(12, 12, rects(agent('head', 'leader')), '<rect width="12" height="12" rx="1.5" fill="#241c16"/>');
 
 // --- social preview 1200x630
 const chain = [['head', 'leader', 0, 'right'], ['body', 'a', 1], ['body', 'b', 0], ['body', 'a', 1], ['body', 'b', 0], ['body', 'a', 1], ['body', 'b', 0]];
-const S = 8; // px per sprite pixel => 96px bots
+const S = 8; // px per sprite pixel => 96px agents
 let chainSvg = '';
-chain.forEach((c, i) => { chainSvg += rects(bot(...c), (chain.length - 1 - i) * 12, 0); });
+chain.forEach((c, i) => { chainSvg += rects(agent(...c), (chain.length - 1 - i) * 12, 0); });
 const chipSvg = rects(chip(), chain.length * 12 + 6, 0);
 const sceneW = (chain.length * 12 + 18) * S;
 const social = `<!doctype html><html><head><meta charset="utf-8"><style>

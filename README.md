@@ -59,9 +59,13 @@ npm test             # unit tests (Vitest)
 npm run test:e2e     # browser tests (Playwright, desktop + mobile matrix)
 npm run build        # production build in dist/
 npm run preview      # serve dist/ locally
+npm run assets       # regenerate icons and the social preview from the sprite grids
+npm run shots        # regenerate the README screenshots (run npm run preview first)
 ```
 
 `npm run test:e2e` needs Playwright’s Chromium: `npx playwright install chromium`.
+
+On phones the start screen shows a one-line hint; the full control legend lives in the in-game help dialog (`?`).
 
 ## Deploy
 
