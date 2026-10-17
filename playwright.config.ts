@@ -6,7 +6,7 @@ const SUBPATH_PORT = 4174;
 const SUBPATH_URL = `http://127.0.0.1:${SUBPATH_PORT}/claude-swarm/`;
 
 /** Only the layout, readiness and start-screen checks run on the extra viewports. */
-const MATRIX_ONLY = /mobile readiness|fit the viewport|start screen/;
+const MATRIX_ONLY = /mobile readiness|fit the viewport|start screen|square cells/;
 
 const touch = (width: number, height: number, deviceScaleFactor = 2) => ({
   viewport: { width, height },
@@ -42,6 +42,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, baseURL: SUBPATH_URL },
       grep: /start screen|release checks/,
     },
+    // WebKit (Safari engine) emulation of iPhones: the closest available stand-in for
+    // iOS Safari / Chrome, which both run WebKit. Requires: npx playwright install webkit
+    { name: 'webkit-iphone-14pro', use: { ...devices['iPhone 14 Pro'] }, grep: /square cells|start screen/ },
+    { name: 'webkit-iphone-se', use: { ...devices['iPhone SE'] }, grep: /square cells|start screen/ },
   ],
   webServer: [
     {

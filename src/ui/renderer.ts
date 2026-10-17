@@ -56,19 +56,26 @@ export class Renderer {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
-    this.resize(canvas.clientWidth || 480);
+    this.resize(canvas.clientWidth || 480, canvas.clientHeight || 480);
   }
 
+  /** CSS pixels per cell as last laid out (equal on both axes by construction). */
+  private cellCssValue = 24;
+
   /**
-   * Picks an integer pixel scale for the backing store. If the largest scale
-   * that fits leaves more than ~10% of the space unused (typical on phones with
-   * fractional device pixel ratios), we render one step bigger and let CSS
-   * shrink it, so the board always fills the screen area.
+   * Sizes the canvas to fit `availableW × availableH` CSS pixels (the frame's
+   * content box) with square cells on every axis. The backing store uses an
+   * integer sprite scale; the CSS box is derived from one cell size, so the
+   * canvas never relies on CSS max-width/max-height clamps (which can apply to
+   * one axis only in some engines and stretch the grid). Works for rows ≠ cols.
    */
-  resize(cssPx: number): void {
+  resize(availableW: number, availableH: number): void {
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const perSide = Math.max(this.cols, this.rows) * SPRITE_PX;
-    const exact = (cssPx * dpr) / perSide;
+    const availW = Math.max(1, availableW);
+    const availH = Math.max(1, availableH);
+    // Largest square cell that fits both axes, in CSS px.
+    const cellFit = Math.min(availW / this.cols, availH / this.rows);
+    const exact = (cellFit * dpr) / SPRITE_PX;
     let scale = Math.max(1, Math.floor(exact));
     const crispFill = scale / exact;
     // On 1x displays a CSS downscale makes pixel rows uneven, so stay crisp
@@ -76,20 +83,47 @@ export class Renderer {
     const threshold = dpr < 2 ? 0.75 : 0.9;
     if (crispFill < threshold) scale = Math.max(1, Math.ceil(exact));
     this.scale = scale;
-    const cell = SPRITE_PX * scale;
-    this.canvas.width = this.cols * cell;
-    this.canvas.height = this.rows * cell;
-    const cssW = Math.min(cssPx, this.canvas.width / dpr);
-    const cssH = cssW * (this.rows / this.cols);
-    this.canvas.style.width = `${cssW}px`;
-    this.canvas.style.height = `${cssH}px`;
+    const cellDevice = SPRITE_PX * scale;
+    this.canvas.width = this.cols * cellDevice;
+    this.canvas.height = this.rows * cellDevice;
+    // CSS cell: never larger than the backing cell at 1:1 and never larger than
+    // what fits the content box (trimmed by a hair so rounding cannot overflow).
+    // The same value drives both axes, so cells are square by construction.
+    const cellCss = Math.floor(Math.min(cellFit, cellDevice / dpr) * 1000) / 1000;
+    this.cellCssValue = cellCss;
+    this.canvas.style.width = `${this.cols * cellCss}px`;
+    this.canvas.style.height = `${this.rows * cellCss}px`;
     this.cache.clear();
     this.vignette = this.buildVignette();
   }
 
   /** CSS pixels per cell, for positioning DOM effects over the board. */
   get cellCss(): number {
-    return this.canvas.clientWidth / this.cols;
+    return this.cellCssValue;
+  }
+
+  /** Sizing facts for tests and the ?debug overlay. */
+  boardMetrics(): {
+    cols: number;
+    rows: number;
+    backing: [number, number];
+    box: [number, number];
+    cell: [number, number];
+    dpr: number;
+    squareOK: boolean;
+  } {
+    const b = this.canvas.getBoundingClientRect();
+    const cellW = b.width / this.cols;
+    const cellH = b.height / this.rows;
+    return {
+      cols: this.cols,
+      rows: this.rows,
+      backing: [this.canvas.width, this.canvas.height],
+      box: [b.width, b.height],
+      cell: [cellW, cellH],
+      dpr: window.devicePixelRatio || 1,
+      squareOK: Math.abs(cellW - cellH) < 0.05,
+    };
   }
 
   private buildVignette(): HTMLCanvasElement | null {

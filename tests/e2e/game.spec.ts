@@ -1049,3 +1049,66 @@ test.describe('release checks', () => {
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
   });
 });
+
+test.describe('square cells', () => {
+  type MetricsWindow = Window & {
+    __swarm: { boardMetrics(): { cols: number; rows: number; backing: [number, number]; box: [number, number]; cell: [number, number]; dpr: number; squareOK: boolean } };
+  };
+  const metrics = (page: Page) => page.evaluate(() => (window as unknown as MetricsWindow).__swarm.boardMetrics());
+  const contentBox = (page: Page) =>
+    page.evaluate(() => {
+      const s = document.querySelector('.screen') as HTMLElement;
+      const cs = getComputedStyle(s);
+      const r = s.getBoundingClientRect();
+      return { w: r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), h: r.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) };
+    });
+  const expectSquare = async (page: Page, label: string) => {
+    await page.waitForTimeout(320); // let the settle pass after layout changes run
+    const m = await metrics(page);
+    const c = await contentBox(page);
+    expect(Math.abs(m.cell[0] - m.cell[1]), `${label}: cell ${m.cell[0].toFixed(3)}x${m.cell[1].toFixed(3)}`).toBeLessThan(0.05);
+    expect(m.squareOK, `${label}: squareOK`).toBe(true);
+    expect(m.box[0], `${label}: box width inside frame content`).toBeLessThanOrEqual(c.w + 0.5);
+    expect(m.box[1], `${label}: box height inside frame content`).toBeLessThanOrEqual(c.h + 0.5);
+    expect(m.backing[0] % (m.cols * 12), `${label}: backing is an integer sprite scale`).toBe(0);
+    expect(m.backing[1] / m.rows, `${label}: backing cell square`).toBe(m.backing[0] / m.cols);
+    return m;
+  };
+
+  test('cells stay square through load, play, toolbar changes, rotation and restart', async ({ page, viewport, hasTouch }) => {
+    const vw = viewport!.width;
+    const vh = viewport!.height;
+    await expectSquare(page, 'load');
+    if (hasTouch) await page.locator('#action-btn').tap();
+    else await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    const playing = await expectSquare(page, 'playing');
+    // Drawn head aligns with the logical cell under the CSS cell size.
+    const head = await page.evaluate(() => {
+      const w = window as unknown as MetricsWindow & { __swarm: { getState(): SwarmState; lastDraw(): Point } };
+      return { logical: w.__swarm.getState().bots[0], drawn: w.__swarm.lastDraw() };
+    });
+    expect(Math.abs(head.drawn.x - head.logical.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(head.drawn.y - head.logical.y)).toBeLessThanOrEqual(1);
+
+    // Browser toolbar show/hide: viewport height changes while the game runs.
+    for (const h of [vh - 90, vh - 200, vh]) {
+      await page.setViewportSize({ width: vw, height: Math.max(300, h) });
+      await expectSquare(page, `height ${h}`);
+    }
+    // Rotation and back.
+    await page.setViewportSize({ width: vh, height: vw });
+    await expectSquare(page, 'rotated');
+    await page.setViewportSize({ width: vw, height: vh });
+    const back = await expectSquare(page, 'back');
+    expect(back.backing).toEqual(playing.backing);
+
+    // Game over and restart keep the same sizing.
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    await expectSquare(page, 'game over');
+    if (hasTouch) await page.locator('#action-btn').tap();
+    else await page.keyboard.press('Enter');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await expectSquare(page, 'restart');
+  });
+});

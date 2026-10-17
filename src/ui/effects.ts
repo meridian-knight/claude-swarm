@@ -8,12 +8,14 @@ export class Effects {
     private readonly layer: HTMLElement,
     private readonly canvas: HTMLCanvasElement,
     private readonly cols: number,
+    /** CSS pixels per cell; falls back to the canvas width when not supplied. */
+    private readonly cellCss?: () => number,
   ) {}
 
   spawned(at: Point): void {
     // Only one label at a time, so a fast streak never piles text over the board.
     this.current?.remove();
-    const cell = this.canvas.clientWidth / this.cols;
+    const cell = this.cellCss ? this.cellCss() : this.canvas.clientWidth / this.cols;
     const node = document.createElement('div');
     node.className = 'effect-spawned';
     node.dataset.effect = 'spawned';

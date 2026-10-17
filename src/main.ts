@@ -30,6 +30,7 @@ declare global {
       placeToken(p: Point): void;
       step(): void;
       lastDraw(): Point;
+      boardMetrics(): ReturnType<Renderer['boardMetrics']>;
       /** Test-only: replaces the swarm with a legal n-bot chain (visual/perf checks). */
       setChain(n: number): void;
       lastTokenDraw(): Point | null;
@@ -68,7 +69,7 @@ bindLayout({
 });
 const haptics = new Haptics();
 const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
-const effects = new Effects(effectsLayer, canvas, GRID_COLS);
+const effects = new Effects(effectsLayer, canvas, GRID_COLS, () => renderer.cellCss);
 const audio = new GameAudio(loadMuted());
 const visual = new VisualState();
 const mascot = new Mascot(hud.mascot, () => visual.reducedMotion);
@@ -207,16 +208,73 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('blur', pauseIfRunning);
 window.addEventListener('pagehide', pauseIfRunning);
 
+/** The frame's content box (padding excluded), which is what the canvas may fill. */
+function screenContentBox(): { w: number; h: number } {
+  const rect = screen.getBoundingClientRect();
+  const cs = getComputedStyle(screen);
+  const w = rect.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const h = rect.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  return { w: Math.max(0, w), h: Math.max(0, h) };
+}
+
 const resize = (): void => {
-  const inner = Math.min(screen.clientWidth, screen.clientHeight);
-  renderer.resize(inner);
+  const { w, h } = screenContentBox();
+  renderer.resize(w, h);
   const touchLayout = document.body.dataset.layout === 'touch';
-  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20, touchLayout ? inner : undefined);
+  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20, touchLayout ? Math.min(w, h) : undefined);
   drawStaticBot(document.getElementById('hud-mascot') as HTMLCanvasElement, 2);
+  updateDebugOverlay();
 };
-new ResizeObserver(resize).observe(screen);
-window.addEventListener('orientationchange', () => window.setTimeout(resize, 50));
-window.visualViewport?.addEventListener('resize', resize);
+// Coalesce bursts of layout events (toolbar animations, rotation) into one
+// resize per frame, then settle again once the browser chrome has finished moving.
+let resizeFrame = 0;
+let settleTimer = 0;
+const scheduleResize = (): void => {
+  if (resizeFrame) return;
+  resizeFrame = window.requestAnimationFrame(() => {
+    resizeFrame = 0;
+    resize();
+  });
+  window.clearTimeout(settleTimer);
+  settleTimer = window.setTimeout(resize, 250);
+};
+new ResizeObserver(scheduleResize).observe(screen);
+window.addEventListener('resize', scheduleResize);
+window.addEventListener('orientationchange', scheduleResize);
+window.addEventListener('pageshow', scheduleResize);
+window.visualViewport?.addEventListener('resize', scheduleResize);
+window.visualViewport?.addEventListener('scroll', scheduleResize);
+// Device pixel ratio can change (zoom, external display); re-pick the sprite scale.
+const watchDpr = (): void => {
+  const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  mq.addEventListener('change', () => {
+    scheduleResize();
+    watchDpr();
+  }, { once: true });
+};
+watchDpr();
+
+/** ?debug: a small readout over the board so a phone screenshot shows the sizing facts. */
+const debugOverlay = params.has('debug') ? document.createElement('pre') : null;
+if (debugOverlay) {
+  debugOverlay.className = 'debug-overlay';
+  debugOverlay.setAttribute('aria-hidden', 'true');
+  screen.appendChild(debugOverlay);
+}
+function updateDebugOverlay(): void {
+  if (!debugOverlay) return;
+  const m = renderer.boardMetrics();
+  const { w, h } = screenContentBox();
+  debugOverlay.textContent = [
+    `ua ${/CriOS/.test(navigator.userAgent) ? 'Chrome iOS' : /Safari/.test(navigator.userAgent) ? 'Safari/WebKit' : 'other'}`,
+    `viewport ${window.innerWidth}x${window.innerHeight} dpr ${m.dpr}`,
+    `content ${w.toFixed(1)}x${h.toFixed(1)}`,
+    `backing ${m.backing[0]}x${m.backing[1]}`,
+    `box ${m.box[0].toFixed(2)}x${m.box[1].toFixed(2)}`,
+    `cell ${m.cell[0].toFixed(3)}x${m.cell[1].toFixed(3)}`,
+    `squareOK ${m.squareOK}`,
+  ].join('\n');
+}
 resize();
 
 function frame(now: number): void {
@@ -261,6 +319,7 @@ if (params.has('test')) {
       apply(step(state, rng));
     },
     lastDraw: () => renderer.lastHead,
+    boardMetrics: () => renderer.boardMetrics(),
     setChain(n: number) {
       // Boustrophedon path from the top-left; head is the last cell, moving down.
       const cells: Point[] = [];

@@ -267,8 +267,9 @@ button {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   touch-action: none;
-  max-width: 100%;
-  max-height: 100%;
+  /* Sized explicitly by the renderer from the frame's content box; no CSS
+     clamps here, so both axes always scale together (square cells). */
+  flex: none;
   box-shadow:
     0 0 0 1px var(--bezel-dark),
     0 0 18px rgba(217, 119, 87, 0.08);
@@ -280,6 +281,23 @@ button {
   z-index: 2;
   pointer-events: none;
   overflow: hidden;
+}
+
+/* ?debug readout for on-device sizing checks. */
+.debug-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  margin: 0;
+  padding: 6px 8px;
+  font: 10px/1.35 var(--mono);
+  color: var(--cream);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--bezel-edge);
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: pre;
 }
 
 .effect-spawned {
