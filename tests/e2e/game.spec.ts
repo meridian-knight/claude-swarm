@@ -95,9 +95,12 @@ test('shows the start screen, instructions, HUD and fan-game label', async ({ pa
     await expect(overlay.locator('#overlay-controls')).toBeHidden();
     await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
   } else if (isMobile) {
-    await expect(overlay.locator('.mini-dpad')).toBeVisible();
-    await expect(overlay.locator('#overlay-controls')).toContainText('Right: D-pad');
-    await expect(overlay.locator('#overlay-controls')).toContainText('Left: pause · help · sound');
+    // Touch start screen: no legend, one hint line; the full legend lives in the help dialog.
+    await expect(overlay.locator('#overlay-controls')).toBeHidden();
+    await expect(overlay.locator('#overlay-hint')).toHaveText('D-pad right · Pause, Help, Sound left · tap ? for the guide');
+    await expect(page.locator('#help-controls')).toContainText('Left: pause · help · sound');
+    await expect(page.locator('#help-controls')).toContainText('Right: D-pad');
+    await expect(page.locator('#help-controls .legend-sides .control-group')).toHaveCount(2);
   } else {
     await expect(overlay.locator('.keys-cluster')).toHaveCount(2);
     await expect(overlay.locator('.key')).toHaveCount(10);
@@ -248,6 +251,10 @@ test.describe('touch play', () => {
     if (vw > vh) expect(board!.height).toBeGreaterThan(vh * 0.55);
     else expect(board!.width).toBeGreaterThan(vw * 0.7);
 
+    await expect(page.locator('.dpad'), 'D-pad hidden on the start screen').toBeHidden();
+    await expect(page.locator('#help-btn'), 'help reachable on the start screen').toBeVisible();
+    await page.locator('#action-btn').tap();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
     const dpad = page.locator('.dpad');
     await expect(dpad).toBeVisible();
     const pad = await dpad.boundingBox();
@@ -448,13 +455,15 @@ test.describe('instructions and mascot', () => {
     expect(await page.evaluate(() => document.getElementById('help')!.contains(document.activeElement))).toBe(true);
   });
 
-  test('help dialog and start screen fit the viewport', async ({ page, viewport }) => {
+  test('help dialog and start screen fit the viewport', async ({ page, viewport, hasTouch }) => {
     const vw = viewport!.width;
     const vh = viewport!.height;
     const shortLandscape = vh < 520 && vw > vh;
     const required = shortLandscape
       ? ['#overlay-title', '#action-btn']
-      : ['#mascot', '#overlay-title', '#overlay-controls', '#action-btn'];
+      : hasTouch
+        ? ['#mascot', '#overlay-title', '#overlay-hint', '#action-btn']
+        : ['#mascot', '#overlay-title', '#overlay-controls', '#action-btn'];
     for (const sel of required) {
       const box = await page.locator(sel).boundingBox();
       expect(box, sel).not.toBeNull();
@@ -615,6 +624,32 @@ test.describe('mobile readiness', () => {
 
     if (hasTouch) {
       await expect(page.locator('body')).toHaveAttribute('data-layout', 'touch');
+      // Start screen: D-pad hidden, utilities reachable, no legend, hint shown, Start comfortably tall, everything inside the board.
+      await expect(page.locator('.dpad')).toBeHidden();
+      for (const sel of ['#pause-btn', '#help-btn', '#mute-btn']) await expect(page.locator(sel)).toBeVisible();
+      await expect(page.locator('#overlay-controls')).toBeHidden();
+      if (!(vw > vh)) await expect(page.locator('#overlay-hint')).toBeVisible();
+      const startBtn = (await page.locator('#action-btn').boundingBox())!;
+      expect(startBtn.height, 'Start at least 44px tall').toBeGreaterThanOrEqual(44);
+      const startItems = vw > vh ? ['#overlay-title', '#overlay-text', '#action-btn'] : ['#mascot', '#overlay-title', '#overlay-text', '#overlay-keys', '#action-btn', '#overlay-hint'];
+      const boxes = [];
+      for (const sel of startItems) {
+        const b = (await page.locator(sel).boundingBox())!;
+        expect(b, sel).not.toBeNull();
+        expect(b.y, `${sel} below board top`).toBeGreaterThanOrEqual(board.y + 4);
+        expect(b.y + b.height, `${sel} above board bottom`).toBeLessThanOrEqual(board.y + board.height - 4);
+        boxes.push(b);
+      }
+      for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.y, `${startItems[i]} does not overlap ${startItems[i - 1]}`).toBeGreaterThanOrEqual(boxes[i - 1]!.y + boxes[i - 1]!.height - 1);
+      await page.locator('#action-btn').tap();
+      await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+      await expect(page.locator('.dpad')).toBeVisible();
+      const playDoc = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ch: document.documentElement.clientHeight }));
+      expect(playDoc.sh, 'no vertical scroll during play').toBeLessThanOrEqual(playDoc.ch + 1);
+      for (const sel of ['#pause-btn', '#help-btn', '#mute-btn']) {
+        const caption = await page.locator(sel).evaluate((el) => getComputedStyle(el, '::after').content);
+        expect(caption, `${sel} has no caption`).toMatch(/^(none|normal|"")$/);
+      }
       for (const sel of ['[data-dir="up"]', '[data-dir="left"]', '[data-dir="right"]', '[data-dir="down"]', '#pause-btn', '#help-btn', '#mute-btn']) {
         const b = (await page.locator(sel).boundingBox())!;
         expect(b.width, `${sel} width`).toBeGreaterThanOrEqual(48);

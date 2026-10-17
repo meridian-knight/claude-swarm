@@ -38,6 +38,7 @@ export class Hud {
   private readonly keys = el<HTMLElement>('overlay-keys');
   private readonly controls = el<HTMLElement>('overlay-controls');
   private readonly eyebrow = el<HTMLElement>('overlay-eyebrow');
+  private readonly hint = el<HTMLElement>('overlay-hint');
   readonly mascot = el<HTMLCanvasElement>('mascot');
   readonly titleNode = el<HTMLElement>('overlay-title');
   /** While the help dialog is open, the pause overlay stays hidden underneath it. */
@@ -89,7 +90,6 @@ export class Hud {
     this.pauseButton.disabled = status !== 'running' && status !== 'paused';
     this.pauseButton.textContent = status === 'paused' ? '▶' : '❚❚';
     this.pauseButton.setAttribute('aria-label', status === 'paused' ? 'Resume' : 'Pause');
-    this.pauseButton.dataset.deckLabel = status === 'paused' ? 'Resume' : 'Pause';
 
     if (this.openTimer !== null) window.clearTimeout(this.openTimer);
     this.openTimer = null;
@@ -105,6 +105,8 @@ export class Hud {
     this.eyebrow.hidden = status !== 'idle';
     this.controls.hidden = status !== 'idle';
     this.keys.hidden = false;
+    this.hint.hidden = !(status === 'idle' && TOUCH);
+    this.hint.textContent = status === 'idle' && TOUCH ? 'D-pad right · Pause, Help, Sound left · tap ? for the guide' : '';
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';

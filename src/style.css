@@ -314,8 +314,8 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  overflow-y: auto;
   text-align: center;
   padding: 20px;
   background: rgba(21, 17, 14, 0.84);
@@ -333,6 +333,28 @@ button {
 }
 
 .overlay[hidden] {
+  display: none;
+}
+
+/* Centres when the content fits, scrolls when it does not. */
+.overlay-inner {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.hint-line {
+  margin: 2px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hint-line[hidden] {
   display: none;
 }
 
@@ -461,6 +483,19 @@ button {
 
 .key-wide {
   min-width: 58px;
+}
+
+.legend-sides {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.legend-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
 }
 
 .key-round {
@@ -688,7 +723,6 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 2px 0 12px;
 }
 
 .deck .chip {
@@ -725,19 +759,6 @@ button {
   border-style: dashed;
 }
 
-.deck .chip::after {
-  content: attr(data-deck-label);
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 8px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  pointer-events: none;
-}
 
 /* Footer ----------------------------------------------------------- */
 .foot {
@@ -750,6 +771,51 @@ button {
 
 .foot p {
   margin: 2px 0;
+}
+
+/* On touch layouts the D-pad appears once a game starts; on the start screen
+   only the pause/help/sound row stays (so the guide and sound are reachable)
+   and the board uses the freed height. */
+body[data-layout="touch"][data-status="idle"] .dpad {
+  display: none;
+}
+
+body[data-layout="touch"][data-status="idle"] .deck {
+  justify-content: center;
+  padding-top: 0;
+}
+
+body[data-layout="touch"][data-status="idle"] .deck-left {
+  flex-direction: row;
+  gap: 18px;
+}
+
+body[data-layout="touch"][data-status="idle"] {
+  --chrome: 236px;
+}
+
+body[data-layout="touch"] #overlay-controls {
+  display: none;
+}
+
+body[data-layout="touch"] .action {
+  min-height: 46px;
+  min-width: 60%;
+}
+
+@keyframes deck-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+body[data-layout="touch"]:not([data-status="idle"]) .dpad {
+  animation: deck-in 0.12s ease-out;
 }
 
 /* Breakpoints ------------------------------------------------------ */
@@ -783,8 +849,10 @@ button {
     gap: 12px;
   }
   .overlay {
-    gap: 5px;
     padding: 12px;
+  }
+  .overlay-inner {
+    gap: 6px;
   }
   .keys {
     font-size: 10px;
@@ -872,13 +940,12 @@ button {
     font-size: 8.5px;
     letter-spacing: 0.03em;
   }
-  /* Small boards: tighter start screen so mascot, legend and Start all fit. */
+  /* Small boards: tighter start screen so mascot, title and Start all fit. */
   .overlay {
-    gap: 4px;
     padding: 10px;
   }
-  .overlay .eyebrow {
-    display: none;
+  .overlay-inner {
+    gap: 5px;
   }
   .overlay-text {
     font-size: 12px;
@@ -939,9 +1006,16 @@ button {
   /* Not enough height for the mascot; keep title, controls and Start in view. */
   .mascot { display: none; }
   .overlay {
-    gap: 4px;
     padding: 10px;
-    overflow-y: auto;
+  }
+  .overlay-inner {
+    gap: 4px;
+  }
+  body[data-layout="touch"][data-status="idle"] {
+    --chrome: 120px;
+  }
+  body[data-layout="touch"][data-status="idle"] .deck-left {
+    flex-direction: column;
   }
   .overlay h2 { font-size: 16px; }
   .overlay-text {
@@ -980,6 +1054,9 @@ button {
     transform: none;
   }
   .mascot[data-mode="over"] {
+    animation: none;
+  }
+  body[data-layout="touch"]:not([data-status="idle"]) .dpad {
     animation: none;
   }
 }

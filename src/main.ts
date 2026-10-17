@@ -209,7 +209,8 @@ window.addEventListener('pagehide', pauseIfRunning);
 const resize = (): void => {
   const inner = Math.min(screen.clientWidth, screen.clientHeight);
   renderer.resize(inner);
-  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20);
+  const touchLayout = document.body.dataset.layout === 'touch';
+  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20, touchLayout ? inner : undefined);
   drawStaticBot(document.getElementById('hud-mascot') as HTMLCanvasElement, 2);
 };
 new ResizeObserver(resize).observe(screen);

@@ -64,9 +64,9 @@
           <div class="stat"><dt>Agents</dt><dd id="bots">1</dd></div>
         </dl>
         <div class="hud-buttons">
-          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play" data-deck-label="Help">?</button>
-          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" data-deck-label="Pause" disabled>❚❚</button>
-          <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound" data-deck-label="Sound">🔊</button>
+          <button id="help-btn" class="chip" type="button" aria-label="How to play" aria-haspopup="dialog" aria-expanded="false" aria-controls="help" title="How to play">?</button>
+          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" disabled>❚❚</button>
+          <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound">🔊</button>
         </div>
       </header>
 
@@ -75,13 +75,16 @@
         <div id="effects" class="effects" aria-live="polite"></div>
 
         <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
-          <canvas id="mascot" class="mascot" width="72" height="72" aria-hidden="true"></canvas>
-          <p class="eyebrow" id="overlay-eyebrow">Unofficial fan game</p>
-          <h2 id="overlay-title">Claude Swarm</h2>
-          <p id="overlay-text" class="overlay-text"></p>
-          <p id="overlay-keys" class="keys"></p>
-          <div id="overlay-controls" class="controls"></div>
-          <button id="action-btn" class="action" type="button">Start</button>
+          <div class="overlay-inner">
+            <canvas id="mascot" class="mascot" width="72" height="72" aria-hidden="true"></canvas>
+            <p class="eyebrow" id="overlay-eyebrow">Unofficial fan game</p>
+            <h2 id="overlay-title">Claude Swarm</h2>
+            <p id="overlay-text" class="overlay-text"></p>
+            <p id="overlay-keys" class="keys"></p>
+            <div id="overlay-controls" class="controls"></div>
+            <button id="action-btn" class="action" type="button">Start</button>
+            <p id="overlay-hint" class="hint-line" hidden></p>
+          </div>
         </div>
 
       </section>

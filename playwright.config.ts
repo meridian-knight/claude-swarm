@@ -31,6 +31,8 @@ export default defineConfig({
     { name: 'desktop-short', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 640 } }, grep: MATRIX_ONLY },
     { name: 'android-small', use: touch(360, 640), grep: MATRIX_ONLY },
     { name: 'iphone-se', use: touch(375, 667), grep: MATRIX_ONLY },
+    { name: 'android-small-bars', use: touch(360, 560), grep: MATRIX_ONLY },
+    { name: 'iphone-se-bars', use: touch(375, 553), grep: MATRIX_ONLY },
     { name: 'iphone-14pro', use: touch(393, 852, 3), grep: MATRIX_ONLY },
     { name: 'landscape', use: { ...devices['Pixel 7 landscape'] }, grep: MATRIX_ONLY },
     { name: 'iphone-se-landscape', use: touch(667, 375), grep: MATRIX_ONLY },
