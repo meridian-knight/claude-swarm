@@ -60,6 +60,7 @@ tests/e2e      Playwright matrix, 12 projects (desktop, short desktop, five phon
 - Pause on `blur`, `pagehide` and `visibilitychange`; resume is always explicit. Opening help pauses and closing resumes only if the game was running.
 - Game over: 150 ms bump into the obstacle, dizzy leader face, chain dims tail to head, overlay after 450 ms with the dizzy mascot.
 - CSP meta (self-only, no connections) ships with the production page; GitHub Pages cannot send headers.
+- Board sizing (fixed after 1.2.2): the renderer measures the frame's content box (padding excluded), derives one CSS cell size that fits both axes, and sets the canvas width and height from it; the backing store is an integer sprite scale. There is deliberately no CSS `max-width`/`max-height` on the canvas: WebKit applied only the width clamp, which stretched the grid into rectangular cells on iPhones (reproduced in Playwright WebKit: 15.85 × 16.00 px cells on the 1.2.2 build). Resizes coalesce per frame with a 250 ms settle pass for toolbar and rotation changes. `?debug` shows a sizing readout for on-device checks; `window.__swarm.boardMetrics()` under `?test`. WebKit projects run with `PLAYWRIGHT_BROWSERS_PATH` pointing at a folder where `npx playwright install webkit` succeeded.
 
 ## Commands
 
