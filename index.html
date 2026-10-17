@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#15110e" />
+    <meta name="description" content="Claude Swarm: an unofficial Snake-style fan game. Eat tokens, grow your swarm of pixel bots." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Crect x='1' y='1' width='10' height='8' rx='2' fill='%23d97757'/%3E%3Crect x='3' y='3' width='2' height='2' fill='%232a1810'/%3E%3Crect x='7' y='3' width='2' height='2' fill='%232a1810'/%3E%3Crect x='4' y='6' width='4' height='1' fill='%232a1810'/%3E%3Crect x='2' y='9' width='1' height='2' fill='%235a2c1a'/%3E%3Crect x='4' y='9' width='1' height='2' fill='%235a2c1a'/%3E%3Crect x='7' y='9' width='1' height='2' fill='%235a2c1a'/%3E%3Crect x='9' y='9' width='1' height='2' fill='%235a2c1a'/%3E%3C/svg%3E" />
+    <title>Claude Swarm · unofficial fan game</title>
+  </head>
+  <body data-status="idle">
+    <main class="handheld">
+      <header class="hud">
+        <h1 class="title">Claude Swarm</h1>
+        <dl class="stats">
+          <div class="stat"><dt>Score</dt><dd id="score">0</dd></div>
+          <div class="stat"><dt>Best</dt><dd id="best">0</dd></div>
+          <div class="stat"><dt>Bots</dt><dd id="bots">1</dd></div>
+        </dl>
+        <div class="hud-buttons">
+          <button id="pause-btn" class="chip" type="button" aria-label="Pause" title="Pause (Space)" disabled>❚❚</button>
+          <button id="mute-btn" class="chip" type="button" aria-label="Mute sound" aria-pressed="false" title="Toggle sound">🔊</button>
+        </div>
+      </header>
+
+      <section class="screen" id="screen">
+        <canvas id="board" width="480" height="480" aria-label="Game board"></canvas>
+        <div id="effects" class="effects" aria-live="polite"></div>
+        <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
+          <p class="eyebrow">Unofficial fan game</p>
+          <h2 id="overlay-title">Claude Swarm</h2>
+          <p id="overlay-text" class="overlay-text"></p>
+          <p id="overlay-keys" class="keys"></p>
+          <button id="action-btn" class="action" type="button">Start</button>
+        </div>
+      </section>
+
+      <nav class="dpad" aria-label="Direction controls">
+        <button type="button" class="dpad-btn up" data-dir="up" aria-label="Up">▲</button>
+        <button type="button" class="dpad-btn left" data-dir="left" aria-label="Left">◀</button>
+        <span class="dpad-center" aria-hidden="true"></span>
+        <button type="button" class="dpad-btn right" data-dir="right" aria-label="Right">▶</button>
+        <button type="button" class="dpad-btn down" data-dir="down" aria-label="Down">▼</button>
+      </nav>
+
+      <footer class="foot">
+        <p class="hint" aria-hidden="true">Arrows / WASD move · Space pause · Enter start</p>
+        <p class="legal">Unofficial fan game. Not affiliated with or endorsed by Anthropic.</p>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

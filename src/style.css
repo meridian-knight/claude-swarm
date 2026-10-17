@@ -1,0 +1,382 @@
+:root {
+  --bg: #15110e;
+  --bezel: #241c16;
+  --bezel-edge: #3a2d23;
+  --bezel-dark: #0d0a08;
+  --screen: #1c1712;
+  --orange: #d97757;
+  --orange-deep: #9a4f36;
+  --orange-light: #f4a97a;
+  --cream: #f3e6cf;
+  --muted: #9b8b78;
+  --text: #efe4d3;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* Vertical space taken by everything except the board. */
+  --chrome: 200px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(217, 119, 87, 0.12), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.3;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.handheld {
+  width: min(100%, 560px);
+  background: linear-gradient(180deg, #2a211a, var(--bezel));
+  border-radius: 28px;
+  padding: 14px;
+  box-shadow:
+    0 0 0 2px var(--bezel-edge),
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* HUD -------------------------------------------------------------- */
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 2px 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow: 0 0 12px rgba(217, 119, 87, 0.55);
+}
+
+.stats {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 0 auto;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 44px;
+}
+
+.stat dt {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  width: 36px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid #4d3c2f;
+  background: var(--bezel-edge);
+  color: var(--cream);
+  font-size: 13px;
+  box-shadow: 0 2px 0 var(--bezel-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.chip[aria-pressed="true"] {
+  background: #2a211a;
+  color: var(--muted);
+}
+
+/* Screen ----------------------------------------------------------- */
+.screen {
+  position: relative;
+  width: min(100%, calc(100dvh - var(--chrome)));
+  max-width: 520px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  background: var(--screen);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 2px var(--bezel-dark),
+    inset 0 0 36px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#board {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.effect-spawned {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  color: var(--cream);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow:
+    0 0 6px var(--orange),
+    0 1px 0 #000;
+  animation: rise 0.7s ease-out forwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -28px;
+  }
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px;
+  background: rgba(21, 17, 14, 0.84);
+  backdrop-filter: blur(2px);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overlay h2 {
+  margin: 0;
+  font-size: clamp(18px, 5vw, 24px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  text-shadow: 0 0 14px rgba(217, 119, 87, 0.6);
+}
+
+.overlay-text {
+  margin: 0;
+  max-width: 32ch;
+  color: var(--text);
+}
+
+.keys {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.action {
+  margin-top: 6px;
+  background: var(--orange);
+  color: #1a110b;
+  border: 0;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 var(--orange-deep);
+}
+
+.action:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--orange-deep);
+}
+
+/* D-pad ------------------------------------------------------------ */
+.dpad {
+  display: none;
+  grid-template-columns: repeat(3, 58px);
+  grid-template-rows: repeat(3, 58px);
+  grid-template-areas:
+    ". up ."
+    "left center right"
+    ". down .";
+  gap: 6px;
+  justify-content: center;
+  margin: 2px auto 0;
+}
+
+.dpad-btn {
+  font-size: 20px;
+  background: var(--bezel-edge);
+  color: var(--cream);
+  border: 2px solid #4d3c2f;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--bezel-dark);
+  touch-action: manipulation;
+  padding: 0;
+}
+
+.dpad-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--bezel-dark);
+  background: var(--orange);
+  color: #1a110b;
+}
+
+.dpad-btn.up { grid-area: up; }
+.dpad-btn.left { grid-area: left; }
+.dpad-btn.right { grid-area: right; }
+.dpad-btn.down { grid-area: down; }
+
+.dpad-center {
+  grid-area: center;
+  align-self: center;
+  justify-self: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bezel-dark);
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  :root {
+    --chrome: 380px;
+  }
+  .dpad {
+    display: grid;
+  }
+  .hint {
+    display: none;
+  }
+}
+
+/* Footer ----------------------------------------------------------- */
+.foot {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.foot p {
+  margin: 2px 0;
+}
+
+/* Short landscape phones: board left, d-pad right. */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root {
+    --chrome: 120px;
+  }
+  .handheld {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "hud hud"
+      "screen dpad"
+      "foot foot";
+    align-items: center;
+  }
+  .hud { grid-area: hud; }
+  .screen { grid-area: screen; }
+  .dpad { grid-area: dpad; margin: 0; }
+  .foot { grid-area: foot; }
+}
+
+/* Narrow phones: keep the whole HUD on one row. */
+@media (max-width: 480px) {
+  .title {
+    font-size: 13px;
+    letter-spacing: 0.14em;
+  }
+  .stats {
+    gap: 10px;
+  }
+  .stat {
+    min-width: 34px;
+  }
+  .stat dd {
+    font-size: 16px;
+  }
+  .chip {
+    width: 32px;
+    height: 30px;
+  }
+}

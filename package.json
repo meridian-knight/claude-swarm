@@ -1,0 +1,21 @@
+{
+  "name": "claude-swarm",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Claude Swarm - an unofficial Snake-style fan game with a swarm of pixel bots.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vitest": "4.1.12"
+  }
+}
