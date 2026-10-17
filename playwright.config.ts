@@ -6,7 +6,7 @@ const SUBPATH_PORT = 4174;
 const SUBPATH_URL = `http://127.0.0.1:${SUBPATH_PORT}/claude-swarm/`;
 
 /** Only the layout, readiness and start-screen checks run on the extra viewports. */
-const MATRIX_ONLY = /mobile readiness|fit the viewport|start screen|square cells/;
+const MATRIX_ONLY = /mobile readiness|fit the viewport|start screen|square cells|grid line/;
 
 const touch = (width: number, height: number, deviceScaleFactor = 2) => ({
   viewport: { width, height },

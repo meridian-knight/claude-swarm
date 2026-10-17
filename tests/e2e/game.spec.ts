@@ -1,4 +1,5 @@
 import { expect, test as base, type Page } from '@playwright/test';
+import { decodePng, gridLines, pitches } from './png';
 
 interface Point {
   x: number;
@@ -624,14 +625,15 @@ test.describe('mobile readiness', () => {
 
     const board = (await page.locator('#board').boundingBox())!;
     if (vw > vh) expect(board.height).toBeGreaterThanOrEqual(vh * 0.6);
-    else if (hasTouch && vw <= 430) expect(board.width).toBeGreaterThanOrEqual(vw * 0.76);
+    // Whole device pixels per cell can trim up to 20 device px off the 288 px minimum board.
+    else if (hasTouch && vw <= 430) expect(board.width).toBeGreaterThanOrEqual(vw * 0.74);
 
     const canvas = await page.evaluate(() => {
       const c = document.getElementById('board') as HTMLCanvasElement;
-      return { w: c.width, css: c.clientWidth };
+      return { w: c.width, css: c.getBoundingClientRect().width };
     });
-    expect(canvas.w % 240, 'integer sprite scale').toBe(0);
-    if (doc.dpr < 2) expect(Math.abs(canvas.css - canvas.w / doc.dpr), 'crisp on 1x').toBeLessThan(1);
+    expect(canvas.w % 20, 'whole device pixels per cell').toBe(0);
+    expect(Math.abs(canvas.css * doc.dpr - canvas.w), 'canvas maps 1:1 to device pixels').toBeLessThan(0.05);
 
     if (hasTouch) {
       await expect(page.locator('body')).toHaveAttribute('data-layout', 'touch');
@@ -646,7 +648,8 @@ test.describe('mobile readiness', () => {
       await expect(page.locator('body'), 'D-pad tap does not start a game').toHaveAttribute('data-status', 'idle');
       const shortScreen = vh < 600 && vw < vh;
       if (shortScreen) expect(doc.sh, 'short screens scroll instead of clipping').toBeGreaterThan(doc.ch);
-      if (vw < vh) expect(board.height, 'portrait board never shrinks below 288px').toBeGreaterThanOrEqual(287);
+      // Frame content never goes below 288px; whole device pixels per cell can trim the canvas to 280px.
+      if (vw < vh) expect(board.height, 'portrait board never shrinks below 280px').toBeGreaterThanOrEqual(279);
       await expect(page.locator('#overlay-controls')).toBeHidden();
       if (!(vw > vh)) await expect(page.locator('#overlay-hint')).toBeVisible();
       const startBtn = (await page.locator('#action-btn').boundingBox())!;
@@ -1052,7 +1055,19 @@ test.describe('release checks', () => {
 
 test.describe('square cells', () => {
   type MetricsWindow = Window & {
-    __swarm: { boardMetrics(): { cols: number; rows: number; backing: [number, number]; box: [number, number]; cell: [number, number]; dpr: number; squareOK: boolean } };
+    __swarm: {
+      boardMetrics(): {
+        cols: number;
+        rows: number;
+        backing: [number, number];
+        box: [number, number];
+        cell: [number, number];
+        cellDevice: number;
+        dpr: number;
+        squareOK: boolean;
+        oneToOne: boolean;
+      };
+    };
   };
   const metrics = (page: Page) => page.evaluate(() => (window as unknown as MetricsWindow).__swarm.boardMetrics());
   const contentBox = (page: Page) =>
@@ -1070,10 +1085,44 @@ test.describe('square cells', () => {
     expect(m.squareOK, `${label}: squareOK`).toBe(true);
     expect(m.box[0], `${label}: box width inside frame content`).toBeLessThanOrEqual(c.w + 0.5);
     expect(m.box[1], `${label}: box height inside frame content`).toBeLessThanOrEqual(c.h + 0.5);
-    expect(m.backing[0] % (m.cols * 12), `${label}: backing is an integer sprite scale`).toBe(0);
-    expect(m.backing[1] / m.rows, `${label}: backing cell square`).toBe(m.backing[0] / m.cols);
+    // The canvas maps 1:1 to device pixels: whole device pixels per cell and a
+    // CSS box of exactly backing / dpr, so the browser never resamples it.
+    expect(Number.isInteger(m.cellDevice) && m.cellDevice >= 1, `${label}: whole device px per cell (${m.cellDevice})`).toBe(true);
+    expect(m.backing, `${label}: backing is cols × cell`).toEqual([m.cols * m.cellDevice, m.rows * m.cellDevice]);
+    // getBoundingClientRect is quantised to 1/64 CSS px, hence the 0.05 device px slack.
+    expect(Math.abs(m.box[0] * m.dpr - m.backing[0]), `${label}: box × dpr = backing width`).toBeLessThan(0.05);
+    expect(Math.abs(m.box[1] * m.dpr - m.backing[1]), `${label}: box × dpr = backing height`).toBeLessThan(0.05);
+    expect(m.oneToOne, `${label}: oneToOne`).toBe(true);
     return m;
   };
+
+  test('every grid line is drawn (no resampling drops lines)', async ({ page, hasTouch, errors }) => {
+    // Regression for phones: a 960 px backing store shrunk into ~927 device
+    // pixels lost every other 1 px grid line under nearest-neighbour sampling.
+    await page.goto('./?test&seed=3');
+    if (hasTouch) await page.locator('#action-btn').tap();
+    else await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await page.waitForTimeout(400);
+    const m = await metrics(page);
+    const box = await page.locator('#board').boundingBox();
+    expect(box).not.toBeNull();
+    // Playwright's screenshot machinery injects an inline stylesheet into the page; the
+    // page's CSP (style-src 'self') blocks it and WebKit reports that as a console error.
+    // That message comes from the test tool, not the game, so it is dropped here only.
+    const before = errors.length;
+    const img = decodePng(await page.screenshot({ clip: box!, caret: 'initial' }));
+    const injected = errors.splice(before).filter((e) => !/Refused to apply a stylesheet/.test(e));
+    errors.push(...injected);
+    const lines = gridLines(img);
+    const expected = { v: m.cols - 1, h: m.rows - 1 };
+    const describe = `vertical ${lines.vertical.length} (${pitches(lines.vertical).join(',')}); horizontal ${lines.horizontal.length} (${pitches(lines.horizontal).join(',')}); backing ${m.backing.join('x')} box ${m.box.map((v) => v.toFixed(2)).join('x')} dpr ${m.dpr}`;
+    expect(lines.vertical.length, describe).toBe(expected.v);
+    expect(lines.horizontal.length, describe).toBe(expected.h);
+    for (const p of [pitches(lines.vertical), pitches(lines.horizontal)]) {
+      expect(Math.max(...p) - Math.min(...p), `uniform pitch: ${describe}`).toBeLessThanOrEqual(1);
+    }
+  });
 
   test('cells stay square through load, play, toolbar changes, rotation and restart', async ({ page, viewport, hasTouch }) => {
     const vw = viewport!.width;

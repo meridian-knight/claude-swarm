@@ -38,7 +38,11 @@ function easeOut(t: number): number {
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
+  /** Device pixels per board cell (a whole number: the canvas maps 1:1 to device pixels). */
+  private cellDevice = 24;
+  /** Device pixels per sprite pixel (cellDevice / 12, possibly fractional). */
   private scale = 2;
+  private dpr = 1;
   private readonly cache = new Map<string, HTMLCanvasElement>();
   private vignette: HTMLCanvasElement | null = null;
   /** Where the head was last drawn, in cell units (for tests). */
@@ -59,47 +63,45 @@ export class Renderer {
     this.resize(canvas.clientWidth || 480, canvas.clientHeight || 480);
   }
 
-  /** CSS pixels per cell as last laid out (equal on both axes by construction). */
-  private cellCssValue = 24;
-
   /**
    * Sizes the canvas to fit `availableW × availableH` CSS pixels (the frame's
-   * content box) with square cells on every axis. The backing store uses an
-   * integer sprite scale; the CSS box is derived from one cell size, so the
-   * canvas never relies on CSS max-width/max-height clamps (which can apply to
-   * one axis only in some engines and stretch the grid). Works for rows ≠ cols.
+   * content box). One rule: a cell is a whole number of device pixels, the
+   * backing store is `cols × cellDevice`, and the CSS box is exactly
+   * `backing / devicePixelRatio`. The canvas therefore maps 1:1 to device
+   * pixels and is never resampled by the browser; resampling is what dropped
+   * the 1-px grid lines on phones (a 960 px backing drawn into 927 device px
+   * lost every other line under nearest-neighbour sampling). Cells are square
+   * by construction and no CSS clamps are involved. Works for rows ≠ cols.
    */
   resize(availableW: number, availableH: number): void {
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const dpr = window.devicePixelRatio || 1;
     const availW = Math.max(1, availableW);
     const availH = Math.max(1, availableH);
-    // Largest square cell that fits both axes, in CSS px.
+    // Largest square cell that fits both axes, in CSS px, then in whole device px.
     const cellFit = Math.min(availW / this.cols, availH / this.rows);
-    const exact = (cellFit * dpr) / SPRITE_PX;
-    let scale = Math.max(1, Math.floor(exact));
-    const crispFill = scale / exact;
-    // On 1x displays a CSS downscale makes pixel rows uneven, so stay crisp
-    // unless the crisp board would be tiny; high-DPR screens hide the difference.
+    // Below 12 device px per cell (a collapsed frame) sprites lose pixels, but
+    // the canvas still fits the box and still maps 1:1.
+    let cellDevice = Math.max(1, Math.floor(cellFit * dpr));
+    // Prefer uniform sprite pixels (a sprite multiple) when that costs little
+    // board area; on 1x displays uneven pixels show more, so accept a bigger loss.
+    const crisp = SPRITE_PX * Math.floor(cellDevice / SPRITE_PX);
     const threshold = dpr < 2 ? 0.75 : 0.9;
-    if (crispFill < threshold) scale = Math.max(1, Math.ceil(exact));
-    this.scale = scale;
-    const cellDevice = SPRITE_PX * scale;
+    if (crisp >= cellDevice * threshold) cellDevice = crisp;
+    this.dpr = dpr;
+    this.cellDevice = cellDevice;
+    this.scale = cellDevice / SPRITE_PX;
     this.canvas.width = this.cols * cellDevice;
     this.canvas.height = this.rows * cellDevice;
-    // CSS cell: never larger than the backing cell at 1:1 and never larger than
-    // what fits the content box (trimmed by a hair so rounding cannot overflow).
-    // The same value drives both axes, so cells are square by construction.
-    const cellCss = Math.floor(Math.min(cellFit, cellDevice / dpr) * 1000) / 1000;
-    this.cellCssValue = cellCss;
-    this.canvas.style.width = `${this.cols * cellCss}px`;
-    this.canvas.style.height = `${this.rows * cellCss}px`;
+    // Exact CSS size (no trimming: even a 0.999 factor would resample).
+    this.canvas.style.width = `${(this.cols * cellDevice) / dpr}px`;
+    this.canvas.style.height = `${(this.rows * cellDevice) / dpr}px`;
     this.cache.clear();
     this.vignette = this.buildVignette();
   }
 
   /** CSS pixels per cell, for positioning DOM effects over the board. */
   get cellCss(): number {
-    return this.cellCssValue;
+    return this.cellDevice / this.dpr;
   }
 
   /** Sizing facts for tests and the ?debug overlay. */
@@ -109,10 +111,13 @@ export class Renderer {
     backing: [number, number];
     box: [number, number];
     cell: [number, number];
+    cellDevice: number;
     dpr: number;
     squareOK: boolean;
+    oneToOne: boolean;
   } {
     const b = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
     const cellW = b.width / this.cols;
     const cellH = b.height / this.rows;
     return {
@@ -121,8 +126,11 @@ export class Renderer {
       backing: [this.canvas.width, this.canvas.height],
       box: [b.width, b.height],
       cell: [cellW, cellH],
-      dpr: window.devicePixelRatio || 1,
+      cellDevice: this.cellDevice,
+      dpr,
       squareOK: Math.abs(cellW - cellH) < 0.05,
+      // Layout rects are reported at 1/64 CSS px, so allow that much (×dpr) slack.
+      oneToOne: Math.abs(b.width * dpr - this.canvas.width) < 0.05 && Math.abs(b.height * dpr - this.canvas.height) < 0.05,
     };
   }
 
@@ -152,15 +160,19 @@ export class Renderer {
     return s;
   }
 
-  /** Snaps a cell-space coordinate to the sprite pixel grid. */
+  /** Snaps a cell-space coordinate to the sprite pixel grid, in whole device px. */
   private snap(cells: number): number {
-    const { scale } = this;
-    return Math.round((cells * SPRITE_PX * scale) / scale) * scale;
+    return Math.round(Math.round(cells * SPRITE_PX) * this.scale);
+  }
+
+  /** Device-pixel offset of sprite pixel `i` within a cell (matches the sprite rasteriser). */
+  private px(i: number): number {
+    return Math.round(i * this.scale);
   }
 
   draw(state: GameState, visual: VisualState, now: number, progress: number): void {
     const { ctx, scale } = this;
-    const cell = SPRITE_PX * scale;
+    const cell = this.cellDevice;
     const w = this.canvas.width;
     const h = this.canvas.height;
     const reduced = visual.reducedMotion;
@@ -191,15 +203,15 @@ export class Renderer {
       ctx.fillStyle = p.colour;
       const px = (p.x + (p.vx * age) / 1000) * cell;
       const py = (p.y + (p.vy * age) / 1000) * cell + k * k * cell * 0.4;
-      const side = p.size * scale;
-      ctx.fillRect(Math.round(px / scale) * scale, Math.round(py / scale) * scale, side, side);
+      const side = Math.max(1, Math.round(p.size * scale));
+      ctx.fillRect(this.px(Math.round(px / scale)), this.px(Math.round(py / scale)), side, side);
     }
     ctx.globalAlpha = 1;
 
     if (state.token) {
       const { x, y } = state.token;
       const pulse = reduced ? 0 : ((Math.floor(now / TOKEN_PULSE_MS) % 2) as 0 | 1);
-      const sprite = this.sprite(`token:${pulse}:${scale}`, () => tokenSprite(pulse, scale));
+      const sprite = this.sprite(`token:${pulse}:${cell}`, () => tokenSprite(pulse, scale));
       ctx.drawImage(sprite, x * cell, y * cell);
       this.lastToken = { x, y };
       this.lastTokenFrame = pulse;
@@ -210,7 +222,9 @@ export class Renderer {
         if (phase < TWINKLE_MS) {
           const spot = TWINKLE_SPOTS[Math.floor(phase / 100) % TWINKLE_SPOTS.length]!;
           ctx.fillStyle = '#fff6e6';
-          ctx.fillRect(x * cell + spot.x * scale, y * cell + spot.y * scale, scale, scale);
+          const sx = this.px(spot.x);
+          const sy = this.px(spot.y);
+          ctx.fillRect(x * cell + sx, y * cell + sy, this.px(spot.x + 1) - sx, this.px(spot.y + 1) - sy);
         }
       }
     } else {
@@ -254,14 +268,14 @@ export class Renderer {
       const squashing = !reduced && i === n - 1 && n > 1 && squashAge >= 0 && squashAge < SQUASH_MS;
       if (squashing) legs = 2;
 
-      const sprite = this.sprite(`${kind}:${state.dir}:${legs}:${face}:${tone}:${scale}`, () =>
+      const sprite = this.sprite(`${kind}:${state.dir}:${legs}:${face}:${tone}:${cell}`, () =>
         botSprite({ kind, dir: state.dir, legFrame: legs, face, tone }, scale),
       );
       const dx = this.snap(fx);
       const dy = this.snap(fy);
       if (squashing) {
         const s = 0.6 + 0.4 * easeOut(squashAge / SQUASH_MS);
-        const size = Math.round((cell * s) / scale) * scale;
+        const size = Math.max(1, Math.round(cell * s));
         ctx.drawImage(sprite, dx + Math.round((cell - size) / 2), dy + (cell - size), size, size);
       } else {
         ctx.drawImage(sprite, dx, dy);
@@ -276,8 +290,8 @@ export class Renderer {
       const k = sinceSpawn / FLASH_MS;
       ctx.globalAlpha = reduced ? 0.8 : 1 - k;
       ctx.strokeStyle = COLOURS.flash;
-      ctx.lineWidth = scale;
-      const grow = reduced ? scale : k * cell * 0.6;
+      ctx.lineWidth = Math.max(1, Math.round(scale));
+      const grow = reduced ? Math.round(scale) : k * cell * 0.6;
       ctx.strokeRect(head.x * cell - grow, head.y * cell - grow, cell + grow * 2, cell + grow * 2);
       ctx.globalAlpha = 1;
     }

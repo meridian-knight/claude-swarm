@@ -83,6 +83,8 @@ async function session(label, ctxOpts, touch) {
   }
   const audio = await page.evaluate(() => window.__swarm.audioState());
   check(`${label}: audio context running after Start`, audio === 'running', audio);
+  const board = await page.evaluate(() => window.__swarm.boardMetrics());
+  check(`${label}: board maps 1:1 to device pixels, square cells`, board.oneToOne === true && board.squareOK === true && Number.isInteger(board.cellDevice), JSON.stringify(board));
   if (touch) await page.locator('[data-dir="up"]').tap(); else await page.keyboard.press('ArrowUp');
   await page.waitForFunction(() => window.__swarm.getState().dir === 'up', null, { timeout: 3000 });
   check(`${label}: steer`, true);

@@ -852,7 +852,7 @@ body[data-layout="touch"] .action {
 @media (pointer: coarse), (max-width: 700px) {
   :root {
     --chrome: 358px;
-    --board-min: 304px; /* 288px canvas + frame padding */
+    --board-min: 304px; /* 288px frame content + padding; whole device px per cell may trim the canvas to 280px */
   }
   .deck {
     display: flex;
@@ -887,7 +887,7 @@ body[data-layout="touch"] .action {
     --chrome: 322px;
     --arm: 52px;
     --util: 48px;
-    --board-min: 304px; /* 288px canvas + frame padding */
+    --board-min: 304px; /* 288px frame content + padding; whole device px per cell may trim the canvas to 280px */
   }
   .handheld {
     gap: 8px;

@@ -43,8 +43,9 @@ scripts/       make-assets.mjs (icons + preview from sprite grids), readme-shots
                audit-help.mjs (read-only checks against a URL).
 tests/unit     30 Vitest cases for the rules (movement, growth, scoring, collisions, tail
                edge case, reversal prevention, pause, restart, win, speed).
-tests/e2e      Playwright matrix, 12 projects (desktop, short desktop, five phone sizes incl.
-               browser-bars heights, two landscapes, iPad, sub-path), ~186 tests.
+tests/e2e      Playwright matrix, 14 projects (desktop, short desktop, five phone sizes incl.
+               browser-bars heights, two landscapes, iPad, sub-path, two WebKit iPhones),
+               ~216 tests; png.ts decodes board screenshots to count drawn grid lines.
 ```
 
 ## Key behaviours and decisions
@@ -53,14 +54,14 @@ tests/e2e      Playwright matrix, 12 projects (desktop, short desktop, five phon
 - Speed: 180 ms per step at one agent, minus 5 ms per agent, floor 70 ms.
 - Touch deck: D-pad on the right as a single touch surface (dominant axis, centre dead zone, diagonal band ignored, slide-to-turn, chord within 60 ms ignored, no auto-repeat); pause, help and sound stacked on the left. The whole handheld is visible from first load in every state; the D-pad is dimmed and inert until a game runs. A D-pad tap never starts a game.
 - Mobile start screen: mascot, "Unofficial fan game", title, tagline, rule, Start, hint "Use the D-pad or swipe to move." Desktop keyboard keycaps show only on desktop. The touch help dialog shows one D-pad diagram, the movement hint and the rules.
-- Portrait phones keep a 288 px board minimum; short screens scroll naturally instead of clipping.
+- Portrait phones keep a 288 px minimum for the frame content; with whole device pixels per cell the canvas inside is 280 to 288 px. Short screens scroll naturally instead of clipping.
 - Audio unlocks on pointerdown, pointerup, touchend, click and keydown and resumes a suspended context; a silent buffer kick helps older iOS. Mute persists in localStorage.
 - Haptics: 8 ms on turn, 15 ms on spawn, 30/40/60 ms on death, only where `navigator.vibrate` exists on a coarse-pointer device (Android). iOS has no vibration API.
 - Reduced motion disables interpolation, particles, bump, shake, mascot motion and transitions.
 - Pause on `blur`, `pagehide` and `visibilitychange`; resume is always explicit. Opening help pauses and closing resumes only if the game was running.
 - Game over: 150 ms bump into the obstacle, dizzy leader face, chain dims tail to head, overlay after 450 ms with the dizzy mascot.
 - CSP meta (self-only, no connections) ships with the production page; GitHub Pages cannot send headers.
-- Board sizing (fixed after 1.2.2): the renderer measures the frame's content box (padding excluded), derives one CSS cell size that fits both axes, and sets the canvas width and height from it; the backing store is an integer sprite scale. There is deliberately no CSS `max-width`/`max-height` on the canvas: WebKit applied only the width clamp, which stretched the grid into rectangular cells on iPhones (reproduced in Playwright WebKit: 15.85 × 16.00 px cells on the 1.2.2 build). Resizes coalesce per frame with a 250 ms settle pass for toolbar and rotation changes. `?debug` shows a sizing readout for on-device checks; `window.__swarm.boardMetrics()` under `?test`. WebKit projects run with `PLAYWRIGHT_BROWSERS_PATH` pointing at a folder where `npx playwright install webkit` succeeded.
+- Board sizing (rule since 1.2.4): the canvas always maps 1:1 to device pixels. The renderer measures the frame's content box (padding excluded), picks a cell of whole device pixels (`floor(fit × devicePixelRatio)`, snapped down to a sprite multiple when that costs under 10% of the area, 25% on 1× screens), sets the backing store to `cols × cellDevice` and the CSS box to exactly `backing / dpr`. Nothing is ever resampled, so cells are square and every 1 px grid line is one device pixel. Sprites are rasterised at `cellDevice / 12` device px per sprite pixel with rounded edges (`pixelEdges` in `sprites.ts`), so fractional scales stay crisp. History: 1.2.3 removed the CSS `max-width`/`max-height` clamps (WebKit applied only one axis and stretched the grid); the remaining phone symptom was dropped grid lines, caused by a 960 px backing store shrunk into ~927 device pixels under nearest-neighbour sampling (measured on the owner's iPhone Chrome screenshot: every second horizontal line missing; reproduced in Chromium "Pixel 7" emulation, which the `grid line` Playwright test now guards). Playwright WebKit filters downscales differently from iOS and does not show that symptom, so the real phone is the acceptance test. Resizes coalesce per frame with a 250 ms settle pass for toolbar and rotation changes. `?debug` shows a sizing readout (`1:1 true` expected) for on-device checks; `window.__swarm.boardMetrics()` under `?test`. WebKit (`webkit-2287`) is in Playwright's shared cache, so the `webkit-iphone-*` projects run with plain `npm run test:e2e`.
 
 ## Commands
 
@@ -100,6 +101,8 @@ node scripts/audit-help.mjs          # help dialog fit across 6 viewports
 | `v1.2.0` / `deployed-v1.2.0` | CyberSquad0 branding, CYBER SQUAD ZERO uppercase form, cs0.dev link |
 | `v1.2.1` / `deployed-v1.2.1` | full handheld visible from first load on mobile, inert D-pad at idle, 288 px board minimum |
 | `v1.2.2` / `deployed-v1.2.2` | touch help dialog with a single D-pad legend |
+| `v1.2.3` / `deployed-v1.2.3` | square cells by construction (no CSS clamps), `?debug` readout, WebKit test projects |
+| `v1.2.4` / `deployed-v1.2.4` | canvas mapped 1:1 to device pixels, fractional sprite scale with rounded edges, grid-line screenshot test |
 
 ## Verified on physical devices (owner, 2026-10-17)
 

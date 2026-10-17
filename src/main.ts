@@ -271,8 +271,9 @@ function updateDebugOverlay(): void {
     `content ${w.toFixed(1)}x${h.toFixed(1)}`,
     `backing ${m.backing[0]}x${m.backing[1]}`,
     `box ${m.box[0].toFixed(2)}x${m.box[1].toFixed(2)}`,
-    `cell ${m.cell[0].toFixed(3)}x${m.cell[1].toFixed(3)}`,
+    `cell ${m.cell[0].toFixed(3)}x${m.cell[1].toFixed(3)} (${m.cellDevice} device px)`,
     `squareOK ${m.squareOK}`,
+    `1:1 ${m.oneToOne}`,
   ].join('\n');
 }
 resize();
