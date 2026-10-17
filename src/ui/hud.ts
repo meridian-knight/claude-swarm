@@ -13,13 +13,19 @@ export interface OverlayInfo {
   newBest: boolean;
 }
 
-const TOUCH = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+const OVERLAY_FADE_MS = 200;
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Missing element #${id}`);
   return node as T;
 }
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+const TOUCH = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
 export class Hud {
   private readonly score = el<HTMLElement>('score');
@@ -33,10 +39,25 @@ export class Hud {
   readonly pauseButton = el<HTMLButtonElement>('pause-btn');
   readonly muteButton = el<HTMLButtonElement>('mute-btn');
 
-  setStats({ score, best, bots }: HudStats): void {
-    this.score.textContent = String(score);
-    this.best.textContent = String(best);
-    this.bots.textContent = String(bots);
+  private last: HudStats = { score: -1, best: -1, bots: -1 };
+  private openTimer: number | null = null;
+  private closeTimer: number | null = null;
+
+  setStats(stats: HudStats): void {
+    this.update(this.score, stats.score, this.last.score);
+    this.update(this.best, stats.best, this.last.best);
+    this.update(this.bots, stats.bots, this.last.bots);
+    this.last = { ...stats };
+  }
+
+  private update(node: HTMLElement, value: number, previous: number): void {
+    if (value === previous) return;
+    node.textContent = String(value);
+    if (previous >= 0 && value > previous) {
+      node.classList.remove('bump');
+      void node.offsetWidth; // restart the animation
+      node.classList.add('bump');
+    }
   }
 
   setMuted(muted: boolean): void {
@@ -45,19 +66,27 @@ export class Hud {
     this.muteButton.textContent = muted ? '🔇' : '🔊';
   }
 
-  setOverlay({ status, score, best, newBest }: OverlayInfo): void {
+  /**
+   * Updates body status synchronously (input and tests rely on it) and shows
+   * or hides the overlay, optionally after a short delay so a death or win
+   * animation can play first.
+   */
+  setOverlay({ status, score, best, newBest }: OverlayInfo, delayMs = 0): void {
     document.body.dataset.status = status;
     this.pauseButton.disabled = status !== 'running' && status !== 'paused';
     this.pauseButton.textContent = status === 'paused' ? '▶' : '❚❚';
     this.pauseButton.setAttribute('aria-label', status === 'paused' ? 'Resume' : 'Pause');
 
+    if (this.openTimer !== null) window.clearTimeout(this.openTimer);
+    this.openTimer = null;
     if (status === 'running') {
-      this.overlay.hidden = true;
+      this.close();
       return;
     }
-    this.overlay.hidden = false;
-    this.overlay.dataset.status = status;
+    if (this.closeTimer !== null) window.clearTimeout(this.closeTimer);
+    this.closeTimer = null;
 
+    this.overlay.dataset.status = status;
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';
@@ -73,9 +102,7 @@ export class Hud {
         break;
       case 'over':
         this.title.textContent = 'Game over';
-        this.text.textContent = newBest
-          ? `New best: ${score} tokens!`
-          : `Score ${score} · Best ${best}`;
+        this.text.textContent = newBest ? `New best: ${score} tokens!` : `Score ${score} · Best ${best}`;
         this.keys.textContent = TOUCH ? 'Tap Restart to try again' : 'Enter to restart';
         this.actionButton.textContent = 'Restart';
         break;
@@ -86,5 +113,31 @@ export class Hud {
         this.actionButton.textContent = 'Play again';
         break;
     }
+
+    const delay = prefersReducedMotion() ? 0 : delayMs;
+    if (delay > 0) {
+      this.openTimer = window.setTimeout(() => this.open(), delay);
+    } else {
+      this.open();
+    }
+  }
+
+  private open(): void {
+    this.overlay.hidden = false;
+    void this.overlay.offsetWidth;
+    this.overlay.classList.add('is-open');
+  }
+
+  private close(): void {
+    this.overlay.classList.remove('is-open');
+    if (this.overlay.hidden || this.closeTimer !== null) return;
+    if (prefersReducedMotion()) {
+      this.overlay.hidden = true;
+      return;
+    }
+    this.closeTimer = window.setTimeout(() => {
+      this.overlay.hidden = true;
+      this.closeTimer = null;
+    }, OVERLAY_FADE_MS);
   }
 }

@@ -243,3 +243,85 @@ test.describe('touch play', () => {
     await expect(page.locator('#bots')).toHaveText('2');
   });
 });
+
+test.describe('visual polish safety', () => {
+  test('the drawn head never leaves the grid while interpolating', async ({ page }) => {
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    const deadline = Date.now() + 2500;
+    let samples = 0;
+    while (Date.now() < deadline) {
+      const { draw, state } = await page.evaluate(() => {
+        const w = window as unknown as SwarmWindow & { __swarm: { lastDraw(): Point } };
+        return { draw: w.__swarm.lastDraw(), state: w.__swarm.getState() };
+      });
+      if (state.status !== 'running') {
+        // After death the head may bump up to 0.35 of a cell toward the wall, never further.
+        expect(draw.x).toBeGreaterThanOrEqual(-0.4);
+        expect(draw.x).toBeLessThanOrEqual(state.cols - 1 + 0.4);
+        break;
+      }
+      expect(draw.x).toBeGreaterThanOrEqual(-0.01);
+      expect(draw.y).toBeGreaterThanOrEqual(-0.01);
+      expect(draw.x).toBeLessThanOrEqual(state.cols - 1 + 0.01);
+      expect(draw.y).toBeLessThanOrEqual(state.rows - 1 + 0.01);
+      samples++;
+      await page.waitForTimeout(40);
+    }
+    expect(samples).toBeGreaterThan(10);
+  });
+
+  test('game over overlay opens within a second and Enter restarts during the death animation', async ({ page, isMobile }) => {
+    test.skip(Boolean(isMobile), 'keyboard flow');
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    const overAt = Date.now();
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: 1_000 });
+    expect(Date.now() - overAt).toBeLessThan(1_000);
+
+    // Die again, then restart immediately while the death sequence is still playing.
+    await page.keyboard.press('Enter');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await expect(page.locator('#overlay')).toBeHidden();
+    expect((await getState(page)).bots).toHaveLength(1);
+  });
+
+  test('reduced motion: play, collect, pause and die with no transitions or errors', async ({ page, isMobile }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    const pause = isMobile ? () => page.locator('#pause-btn').tap() : () => page.keyboard.press('Space');
+    const resume = isMobile ? () => page.locator('#action-btn').tap() : () => page.keyboard.press('Space');
+    await page.locator('#action-btn').click();
+    await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
+    await expect(page.locator('#overlay')).toBeHidden();
+
+    await placeTokenAhead(page, resume, pause);
+    await expect.poll(async () => (await getState(page)).bots.length).toBe(2);
+    await expect(page.locator('#bots')).toHaveText('2');
+
+    await pause();
+    await expect(page.locator('#overlay')).toBeVisible();
+    await expect(page.locator('#overlay h2')).toHaveText('Paused');
+    await resume();
+    await expect(page.locator('#overlay')).toBeHidden();
+
+    await expect.poll(async () => (await getState(page)).status, { timeout: 15_000 }).toBe('over');
+    await expect(page.locator('#overlay')).toBeVisible({ timeout: 500 });
+  });
+
+  test('frame times stay reasonable during play', async ({ page }, testInfo) => {
+    await page.locator('#action-btn').click();
+    await page.waitForTimeout(2_000);
+    const stats = await page.evaluate(() =>
+      (window as unknown as { __swarm: { frameStats(): { avgMs: number; maxMs: number; samples: number } } }).__swarm.frameStats(),
+    );
+    testInfo.annotations.push({ type: 'frame-stats', description: JSON.stringify(stats) });
+    expect(stats.samples).toBeGreaterThan(30);
+    expect(Number.isFinite(stats.avgMs)).toBe(true);
+    // Soft budget: headless machines vary, so this only catches a real stall.
+    expect(stats.avgMs).toBeLessThan(60);
+  });
+});

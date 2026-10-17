@@ -81,7 +81,9 @@ button {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--orange);
-  text-shadow: 0 0 12px rgba(217, 119, 87, 0.55);
+  text-shadow:
+    1px 1px 0 var(--orange-deep),
+    0 0 12px rgba(217, 119, 87, 0.45);
 }
 
 .stats {
@@ -99,7 +101,7 @@ button {
 
 .stat dt {
   font-size: 9px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -110,6 +112,22 @@ button {
   font-weight: 700;
   color: var(--cream);
   font-variant-numeric: tabular-nums;
+  transform-origin: 100% 60%;
+}
+
+.stat dd.bump {
+  animation: stat-bump 0.18s ease-out;
+}
+
+@keyframes stat-bump {
+  0% {
+    transform: scale(1.25);
+    color: var(--orange-light);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--cream);
+  }
 }
 
 .hud-buttons {
@@ -149,15 +167,35 @@ button {
   max-width: 520px;
   aspect-ratio: 1;
   margin: 0 auto;
-  background: var(--screen);
-  border-radius: 8px;
+  padding: 8px;
+  background: #120e0b;
+  border-radius: 10px;
   box-shadow:
     inset 0 0 0 2px var(--bezel-dark),
-    inset 0 0 36px rgba(0, 0, 0, 0.6);
+    inset 0 1px 0 3px rgba(243, 230, 207, 0.05),
+    inset 0 0 36px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Faint scanlines for the LCD feel; light enough to never hide a token. */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.09) 0,
+    rgba(0, 0, 0, 0.09) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
 }
 
 #board {
@@ -167,11 +205,15 @@ button {
   touch-action: none;
   max-width: 100%;
   max-height: 100%;
+  box-shadow:
+    0 0 0 1px var(--bezel-dark),
+    0 0 18px rgba(217, 119, 87, 0.08);
 }
 
 .effects {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
   overflow: hidden;
 }
@@ -188,7 +230,7 @@ button {
   text-shadow:
     0 0 6px var(--orange),
     0 1px 0 #000;
-  animation: rise 0.7s ease-out forwards;
+  animation: rise 0.7s steps(7, end) forwards;
 }
 
 @keyframes rise {
@@ -205,6 +247,7 @@ button {
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -214,6 +257,16 @@ button {
   padding: 20px;
   background: rgba(21, 17, 14, 0.84);
   backdrop-filter: blur(2px);
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 0.16s ease-out,
+    transform 0.16s ease-out;
+}
+
+.overlay.is-open {
+  opacity: 1;
+  transform: none;
 }
 
 .overlay[hidden] {
@@ -293,11 +346,19 @@ button {
   padding: 0;
 }
 
-.dpad-btn:active {
+.dpad-btn:active,
+.dpad-btn.pressed {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--bezel-dark);
+  box-shadow:
+    0 1px 0 var(--bezel-dark),
+    0 0 14px rgba(217, 119, 87, 0.45);
   background: var(--orange);
   color: #1a110b;
+}
+
+.chip:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--bezel-dark);
 }
 
 .dpad-btn.up { grid-area: up; }
@@ -378,5 +439,43 @@ button {
   .chip {
     width: 32px;
     height: 30px;
+  }
+}
+
+/* Reduced motion: keep feedback, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    transition: none;
+    transform: none;
+  }
+  .effect-spawned {
+    animation: fade-only 0.6s linear forwards;
+  }
+  .stat dd.bump {
+    animation: stat-flash 0.18s linear;
+  }
+  .dpad-btn.pressed,
+  .dpad-btn:active,
+  .action:active,
+  .chip:active {
+    transform: none;
+  }
+}
+
+@keyframes fade-only {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes stat-flash {
+  0% {
+    color: var(--orange-light);
+  }
+  100% {
+    color: var(--cream);
   }
 }

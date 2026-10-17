@@ -7,19 +7,35 @@ import type { Direction } from '../game/types';
 
 export const SPRITE_PX = 12;
 
-const PALETTE: Readonly<Record<string, string>> = {
-  D: '#7a3b22', // outline
-  O: '#d97757', // body
-  L: '#f4a97a', // highlight
+export type BotKind = 'head' | 'body';
+export type Face = 'open' | 'blink' | 'chomp' | 'dizzy';
+export type Tone = 'leader' | 'a' | 'b' | 'dim';
+export type LegFrame = 0 | 1 | 2;
+
+export interface BotSpriteOptions {
+  kind: BotKind;
+  dir: Direction;
+  legFrame: LegFrame;
+  face: Face;
+  tone: Tone;
+}
+
+const SHARED: Readonly<Record<string, string>> = {
   E: '#2a1810', // eye / mouth
+  M: '#160c07', // open mouth
   G: '#ffe9d6', // eye glint
-  g: '#5a2c1a', // leg
   K: '#f7c948', // token core
-  A: '#f3e6cf', // token arm
-  S: '#b8862a', // token spark
+  A: '#f3e6cf', // token arm / antenna
+  S: '#b8862a', // token spark / halo
 };
 
-export type BotKind = 'head' | 'body';
+/** Body colours per tone: outline, fill, highlight, legs, eyelid. */
+const TONES: Readonly<Record<Tone, Readonly<Record<string, string>>>> = {
+  leader: { D: '#7a3b22', O: '#e8895f', L: '#f8b98e', g: '#5a2c1a', d: '#c76a4a' },
+  a: { D: '#7a3b22', O: '#d97757', L: '#f4a97a', g: '#5a2c1a', d: '#b85f42' },
+  b: { D: '#73361f', O: '#cf6d4e', L: '#eb9c70', g: '#52281a', d: '#ad5839' },
+  dim: { D: '#4a3028', O: '#8a6a5c', L: '#a07f70', g: '#3d261b', d: '#7a5a4c' },
+};
 
 type Grid = string[][];
 
@@ -32,7 +48,7 @@ function put(grid: Grid, x: number, y: number, key: string): void {
   grid[y]![x] = key;
 }
 
-function paint(grid: Grid, scale: number): HTMLCanvasElement {
+function paint(grid: Grid, palette: Readonly<Record<string, string>>, scale: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = SPRITE_PX * scale;
   canvas.height = SPRITE_PX * scale;
@@ -40,7 +56,7 @@ function paint(grid: Grid, scale: number): HTMLCanvasElement {
   if (!ctx) return canvas;
   grid.forEach((row, y) => {
     row.forEach((key, x) => {
-      const colour = PALETTE[key];
+      const colour = palette[key];
       if (!colour) return;
       ctx.fillStyle = colour;
       ctx.fillRect(x * scale, y * scale, scale, scale);
@@ -49,67 +65,104 @@ function paint(grid: Grid, scale: number): HTMLCanvasElement {
   return canvas;
 }
 
-/** A boxy orange bot: rounded body, two eyes, a mouth and four little legs. */
-export function botSprite(kind: BotKind, dir: Direction, legFrame: 0 | 1, scale: number): HTMLCanvasElement {
+const LEGS: Readonly<Record<LegFrame, readonly number[]>> = {
+  0: [1, 4, 7, 10],
+  1: [2, 4, 7, 9],
+  2: [2, 5, 6, 9],
+};
+
+/**
+ * A boxy orange bot: flat-topped rounded body, two eyes, a mouth and four
+ * little legs. The leader gets a lighter tone, a cream antenna pixel and
+ * eyes that look where it is going.
+ */
+export function botSprite(opts: BotSpriteOptions, scale: number): HTMLCanvasElement {
+  const { kind, dir, legFrame, face, tone } = opts;
   const g = blank();
 
-  // Body (x 1..10, y 1..8) with rounded corners.
-  for (let x = 3; x <= 8; x++) {
+  // Body: x 0..11, y 1..8 with 1px rounded corners.
+  for (let x = 1; x <= 10; x++) {
     put(g, x, 1, 'D');
     put(g, x, 8, 'D');
   }
-  for (const y of [2, 7]) {
-    put(g, 2, y, 'D');
-    put(g, 9, y, 'D');
-    for (let x = 3; x <= 8; x++) put(g, x, y, 'O');
+  for (let y = 2; y <= 7; y++) {
+    put(g, 0, y, 'D');
+    put(g, 11, y, 'D');
+    for (let x = 1; x <= 10; x++) put(g, x, y, 'O');
   }
-  for (let y = 3; y <= 6; y++) {
-    put(g, 1, y, 'D');
-    put(g, 10, y, 'D');
-    for (let x = 2; x <= 9; x++) put(g, x, y, 'O');
-  }
-  // Highlight.
-  put(g, 3, 2, 'L');
-  put(g, 4, 2, 'L');
-  put(g, 2, 3, 'L');
+  put(g, 1, 2, 'L');
+  put(g, 2, 2, 'L');
+  put(g, 1, 3, 'L');
 
-  // Eyes.
+  if (kind === 'head') {
+    put(g, 5, 0, 'A');
+  }
+
+  // Eyes: 2x2 blocks at x 3-4 and 7-8, rows 3-4; the leader's shift toward travel.
   let ex = 0;
   let ey = 0;
-  if (kind === 'head') {
+  if (kind === 'head' && face !== 'dizzy') {
     if (dir === 'left') ex = -1;
     if (dir === 'right') ex = 1;
     if (dir === 'up') ey = -1;
     if (dir === 'down') ey = 1;
   }
-  const eyeRows = kind === 'head' ? [3, 4] : [4];
-  for (const baseX of [3, 7]) {
-    for (const row of eyeRows) {
-      put(g, baseX + ex, row + ey, 'E');
-      put(g, baseX + 1 + ex, row + ey, 'E');
+
+  if (face === 'dizzy') {
+    for (const cx of [2, 6]) {
+      put(g, cx, 3, 'E');
+      put(g, cx + 2, 3, 'E');
+      put(g, cx + 1, 4, 'E');
+      put(g, cx, 5, 'E');
+      put(g, cx + 2, 5, 'E');
     }
-    if (kind === 'head') put(g, baseX + ex, 3 + ey, 'G');
+  } else if (face === 'blink') {
+    for (const bx of [3, 7]) {
+      put(g, bx + ex, 4 + ey, 'E');
+      put(g, bx + 1 + ex, 4 + ey, 'E');
+    }
+  } else {
+    for (const bx of [3, 7]) {
+      if (kind === 'head') {
+        put(g, bx + ex, 3 + ey, 'E');
+        put(g, bx + 1 + ex, 3 + ey, 'E');
+        put(g, bx + ex, 4 + ey, 'E');
+        put(g, bx + 1 + ex, 4 + ey, 'E');
+        put(g, bx + ex, 3 + ey, 'G');
+      } else {
+        put(g, bx, 3, 'd');
+        put(g, bx + 1, 3, 'd');
+        put(g, bx, 4, 'E');
+        put(g, bx + 1, 4, 'E');
+      }
+    }
   }
 
   // Mouth.
-  if (kind === 'head') {
+  if (face === 'chomp') {
+    for (let x = 4; x <= 7; x++) {
+      put(g, x, 6, 'M');
+      put(g, x, 7, 'M');
+    }
+  } else if (face === 'dizzy') {
+    for (let x = 4; x <= 7; x++) put(g, x, 7, 'E');
+  } else if (kind === 'head') {
     for (let x = 4; x <= 7; x++) put(g, x, 6, 'E');
   } else {
     put(g, 5, 6, 'E');
     put(g, 6, 6, 'E');
   }
 
-  // Legs (two walk frames).
-  const legs = legFrame === 0 ? [2, 4, 7, 9] : [3, 4, 7, 8];
-  for (const x of legs) {
+  // Legs.
+  for (const x of LEGS[legFrame]) {
     put(g, x, 9, 'g');
     put(g, x, 10, 'g');
   }
 
-  return paint(g, scale);
+  return paint(g, { ...SHARED, ...TONES[tone] }, scale);
 }
 
-/** An eight-point spark, loosely in the spirit of an asterisk token. */
+/** An eight-point spark with a faint halo on its wide frame. */
 export function tokenSprite(frame: 0 | 1, scale: number): HTMLCanvasElement {
   const g = blank();
   const reach = frame === 0 ? 3 : 4;
@@ -121,6 +174,14 @@ export function tokenSprite(frame: 0 | 1, scale: number): HTMLCanvasElement {
       put(g, 6 + i, c, 'A');
     }
   }
+  if (frame === 1) {
+    for (const c of [5, 6]) {
+      put(g, c, 0, 'S');
+      put(g, c, 11, 'S');
+      put(g, 0, c, 'S');
+      put(g, 11, c, 'S');
+    }
+  }
   const diag = frame === 0 ? [2] : [2, 3];
   for (const d of diag) {
     put(g, 5 - d, 5 - d, 'S');
@@ -129,5 +190,5 @@ export function tokenSprite(frame: 0 | 1, scale: number): HTMLCanvasElement {
     put(g, 6 + d, 6 + d, 'S');
   }
   for (const y of [5, 6]) for (const x of [5, 6]) put(g, x, y, 'K');
-  return paint(g, scale);
+  return paint(g, SHARED, scale);
 }

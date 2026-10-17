@@ -17,6 +17,7 @@ import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
 import { Renderer } from './ui/renderer';
 import { loadBest, loadMuted, saveBest, saveMuted } from './ui/storage';
+import { VisualState } from './ui/visual';
 
 declare global {
   interface Window {
@@ -24,9 +25,15 @@ declare global {
       getState(): GameState;
       placeToken(p: Point): void;
       step(): void;
+      lastDraw(): Point;
+      frameStats(): { avgMs: number; maxMs: number; samples: number };
     };
   }
 }
+
+/** How long death / win animations play before the overlay opens (visual only). */
+const OVER_OVERLAY_DELAY_MS = 450;
+const WON_OVERLAY_DELAY_MS = 700;
 
 const params = new URLSearchParams(window.location.search);
 const seedParam = params.get('seed');
@@ -42,22 +49,26 @@ const hud = new Hud();
 const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
 const effects = new Effects(effectsLayer, canvas, GRID_COLS);
 const audio = new GameAudio(loadMuted());
+const visual = new VisualState();
 
 let state: GameState = createGame(GRID_COLS, GRID_ROWS);
 let best = loadBest();
 let bestAtRunStart = best;
-let legFrame: 0 | 1 = 0;
-let flashUntil = 0;
 let accumulator = 0;
 let lastFrame = 0;
+const frameTimes: number[] = [];
 
-function syncHud(): void {
+function syncHud(delayMs = 0): void {
   hud.setStats({ score: state.score, best, bots: state.bots.length });
-  hud.setOverlay({ status: state.status, score: state.score, best, newBest: best > bestAtRunStart });
+  hud.setOverlay({ status: state.status, score: state.score, best, newBest: best > bestAtRunStart }, delayMs);
 }
 
 function apply(result: StepResult): void {
+  const prev = state;
   state = result.state;
+  const now = performance.now();
+  visual.observe(prev, state, result.events, now);
+  let overlayDelay = 0;
   for (const event of result.events) {
     switch (event) {
       case 'started':
@@ -68,7 +79,6 @@ function apply(result: StepResult): void {
       case 'spawned': {
         const head = state.bots[0];
         if (head) effects.spawned(head);
-        flashUntil = performance.now() + 260;
         audio.play('eat');
         if (state.score > best) {
           best = state.score;
@@ -80,20 +90,21 @@ function apply(result: StepResult): void {
         audio.play('pause');
         break;
       case 'resumed':
-        accumulator = 0;
         audio.play('resume');
         break;
       case 'over':
+        overlayDelay = OVER_OVERLAY_DELAY_MS;
         audio.play('over');
         break;
       case 'won':
+        overlayDelay = WON_OVERLAY_DELAY_MS;
         audio.play('won');
         break;
       case 'moved':
         break;
     }
   }
-  syncHud();
+  syncHud(overlayDelay);
 }
 
 function startOrRestart(): void {
@@ -142,8 +153,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 const resize = (): void => {
-  const rect = screen.getBoundingClientRect();
-  renderer.resize(Math.min(rect.width, rect.height));
+  const inner = Math.min(screen.clientWidth, screen.clientHeight);
+  renderer.resize(inner);
 };
 new ResizeObserver(resize).observe(screen);
 resize();
@@ -151,19 +162,25 @@ resize();
 function frame(now: number): void {
   const dt = Math.min(now - lastFrame, 250);
   lastFrame = now;
+  frameTimes.push(dt);
+  if (frameTimes.length > 120) frameTimes.shift();
+
   if (state.status === 'running') {
     accumulator += dt;
     let interval = tickInterval(state);
     while (state.status === 'running' && accumulator >= interval) {
       accumulator -= interval;
       apply(step(state, rng));
-      legFrame = legFrame === 0 ? 1 : 0;
       interval = tickInterval(state);
     }
-  } else {
+  } else if (state.status !== 'paused') {
+    // Paused keeps its mid-step offset so bots freeze in place; other states rest on the grid.
     accumulator = 0;
   }
-  renderer.draw(state, { legFrame, time: now, flashUntil });
+  const progress = state.status === 'running' || state.status === 'paused' ? accumulator / tickInterval(state) : 1;
+
+  visual.prune(now);
+  renderer.draw(state, visual, now, progress);
   window.requestAnimationFrame(frame);
 }
 
@@ -181,6 +198,13 @@ if (params.has('test')) {
     },
     step() {
       apply(step(state, rng));
+    },
+    lastDraw: () => renderer.lastHead,
+    frameStats() {
+      const samples = frameTimes.length;
+      const avgMs = samples ? frameTimes.reduce((a, b) => a + b, 0) / samples : 0;
+      const maxMs = samples ? Math.max(...frameTimes) : 0;
+      return { avgMs, maxMs, samples };
     },
   };
 }

@@ -1,14 +1,15 @@
-import type { GameState } from '../game/types';
-import { botSprite, SPRITE_PX, tokenSprite, type BotKind } from './sprites';
-
-export interface FrameInfo {
-  /** Alternates every simulation tick so the legs appear to walk. */
-  legFrame: 0 | 1;
-  /** High-resolution timestamp in ms. */
-  time: number;
-  /** Until when the head should show the "spawned" flash ring. */
-  flashUntil: number;
-}
+import type { GameState, Point } from '../game/types';
+import { botSprite, SPRITE_PX, tokenSprite, type BotKind, type Face, type LegFrame, type Tone } from './sprites';
+import {
+  BLINK_MS,
+  BUMP_MS,
+  DEATH_DIM_START_MS,
+  FLASH_MS,
+  SHAKE_MS,
+  SQUASH_MS,
+  WIN_CHOMP_MS,
+  type VisualState,
+} from './visual';
 
 const COLOURS = {
   screen: '#1c1712',
@@ -16,10 +17,21 @@ const COLOURS = {
   flash: '#f4a97a',
 };
 
+const VIGNETTE_IDLE = 0.6;
+const VIGNETTE_PLAY = 0.38;
+const VIGNETTE_FADE_MS = 300;
+
+function easeOut(t: number): number {
+  return 1 - (1 - t) * (1 - t);
+}
+
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private scale = 2;
   private readonly cache = new Map<string, HTMLCanvasElement>();
+  private vignette: HTMLCanvasElement | null = null;
+  /** Where the head was last drawn, in cell units (for tests). */
+  lastHead: Point = { x: 0, y: 0 };
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -54,11 +66,29 @@ export class Renderer {
     this.canvas.style.width = `${cssW}px`;
     this.canvas.style.height = `${cssH}px`;
     this.cache.clear();
+    this.vignette = this.buildVignette();
   }
 
   /** CSS pixels per cell, for positioning DOM effects over the board. */
   get cellCss(): number {
     return this.canvas.clientWidth / this.cols;
+  }
+
+  private buildVignette(): HTMLCanvasElement | null {
+    const c = document.createElement('canvas');
+    c.width = this.canvas.width;
+    c.height = this.canvas.height;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    const cx = c.width / 2;
+    const cy = c.height / 2;
+    const r = Math.max(c.width, c.height);
+    const grad = ctx.createRadialGradient(cx, cy, r * 0.32, cx, cy, r * 0.78);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, c.width, c.height);
+    return c;
   }
 
   private sprite(key: string, make: () => HTMLCanvasElement): HTMLCanvasElement {
@@ -70,45 +100,132 @@ export class Renderer {
     return s;
   }
 
-  draw(state: GameState, frame: FrameInfo): void {
+  /** Snaps a cell-space coordinate to the sprite pixel grid. */
+  private snap(cells: number): number {
+    const { scale } = this;
+    return Math.round((cells * SPRITE_PX * scale) / scale) * scale;
+  }
+
+  draw(state: GameState, visual: VisualState, now: number, progress: number): void {
     const { ctx, scale } = this;
     const cell = SPRITE_PX * scale;
     const w = this.canvas.width;
     const h = this.canvas.height;
+    const reduced = visual.reducedMotion;
+    const t = reduced ? 1 : Math.max(0, Math.min(1, progress));
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
 
+    // Death shake: a couple of pixels for a few frames, never under reduced motion.
+    if (visual.overAt !== null && !reduced && now - visual.overAt < SHAKE_MS) {
+      const k = 1 - (now - visual.overAt) / SHAKE_MS;
+      ctx.translate(Math.round(Math.sin(now * 0.09) * 2 * scale * k), Math.round(Math.cos(now * 0.13) * 2 * scale * k));
+    }
+
     ctx.fillStyle = COLOURS.screen;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(-cell, -cell, w + cell * 2, h + cell * 2);
 
     ctx.fillStyle = COLOURS.grid;
     for (let x = 1; x < this.cols; x++) ctx.fillRect(x * cell, 0, 1, h);
     for (let y = 1; y < this.rows; y++) ctx.fillRect(0, y * cell, w, 1);
 
+    // Particles sit under everything else so they never hide the head or a token.
+    for (const p of visual.particles) {
+      const age = now - p.born;
+      if (age < 0 || age >= p.life) continue;
+      const k = age / p.life;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = p.colour;
+      const px = (p.x + (p.vx * age) / 1000) * cell;
+      const py = (p.y + (p.vy * age) / 1000) * cell + k * k * cell * 0.4;
+      ctx.fillRect(Math.round(px / scale) * scale, Math.round(py / scale) * scale, scale, scale);
+    }
+    ctx.globalAlpha = 1;
+
     if (state.token) {
-      const pulse = (Math.floor(frame.time / 260) % 2) as 0 | 1;
-      const bob = Math.floor(frame.time / 520) % 2 === 0 ? 0 : -scale;
+      const pulse = (Math.floor(now / 260) % 2) as 0 | 1;
+      const bob = !reduced && Math.floor(now / 520) % 2 === 1 ? -scale : 0;
       const sprite = this.sprite(`token:${pulse}:${scale}`, () => tokenSprite(pulse, scale));
       ctx.drawImage(sprite, state.token.x * cell, state.token.y * cell + bob);
     }
 
-    for (let i = state.bots.length - 1; i >= 0; i--) {
-      const bot = state.bots[i]!;
-      const kind: BotKind = i === 0 ? 'head' : 'body';
-      const legs = ((frame.legFrame + i) & 1) as 0 | 1;
-      const dir = kind === 'head' ? state.dir : 'right';
-      const sprite = this.sprite(`${kind}:${dir}:${legs}:${scale}`, () => botSprite(kind, dir, legs, scale));
-      ctx.drawImage(sprite, bot.x * cell, bot.y * cell);
+    const n = state.bots.length;
+    const aligned = visual.prevBots.length === n;
+    const idle = state.status === 'idle';
+    const breathe = idle && !reduced ? Math.floor(now / 600) % 2 : 0;
+    const dimPerBot = n > 0 ? Math.min(5, 250 / n) : 0;
+    const sinceOver = visual.overAt === null ? -1 : now - visual.overAt;
+    const sinceWon = visual.wonAt === null ? -1 : now - visual.wonAt;
+    const justStarted = now - visual.startedAt < BLINK_MS;
+    const bump = visual.bumpOffset(now);
+
+    for (let i = n - 1; i >= 0; i--) {
+      const cur = state.bots[i]!;
+      const prev = aligned ? visual.prevBots[i]! : cur;
+      let fx = prev.x + (cur.x - prev.x) * t;
+      let fy = prev.y + (cur.y - prev.y) * t;
+      const isHead = i === 0;
+      if (isHead) {
+        fx += bump.x;
+        fy += bump.y;
+        if (breathe) fy -= 1 / SPRITE_PX;
+      }
+
+      const kind: BotKind = isHead ? 'head' : 'body';
+      let face: Face = 'open';
+      if (sinceOver >= 0 && isHead && (reduced || sinceOver >= BUMP_MS)) face = 'dizzy';
+      else if (sinceWon >= 0 && sinceWon < WIN_CHOMP_MS) face = 'chomp';
+      else if (justStarted || ((state.tick + i * 7) % 41 === 0 && !idle && sinceOver < 0)) face = 'blink';
+      else if (isHead && state.tick === visual.chompTick) face = 'chomp';
+
+      let tone: Tone = isHead ? 'leader' : i % 2 === 1 ? 'a' : 'b';
+      if (sinceOver >= 0 && sinceOver >= DEATH_DIM_START_MS + (n - 1 - i) * dimPerBot && !isHead) tone = 'dim';
+
+      let legs: LegFrame = idle ? (breathe as LegFrame) : (((visual.legFrame + i) & 1) as LegFrame);
+      const squashAge = now - visual.spawnedAt;
+      const squashing = !reduced && i === n - 1 && n > 1 && squashAge >= 0 && squashAge < SQUASH_MS;
+      if (squashing) legs = 2;
+
+      const sprite = this.sprite(`${kind}:${state.dir}:${legs}:${face}:${tone}:${scale}`, () =>
+        botSprite({ kind, dir: state.dir, legFrame: legs, face, tone }, scale),
+      );
+      const dx = this.snap(fx);
+      const dy = this.snap(fy);
+      if (squashing) {
+        const s = 0.6 + 0.4 * easeOut(squashAge / SQUASH_MS);
+        const size = Math.round((cell * s) / scale) * scale;
+        ctx.drawImage(sprite, dx + Math.round((cell - size) / 2), dy + (cell - size), size, size);
+      } else {
+        ctx.drawImage(sprite, dx, dy);
+      }
+      if (isHead) this.lastHead = { x: dx / cell, y: dy / cell };
     }
 
-    if (frame.time < frame.flashUntil && state.bots[0]) {
+    // Spawn flash ring around the head.
+    const sinceSpawn = now - visual.spawnedAt;
+    if (sinceSpawn >= 0 && sinceSpawn < FLASH_MS && state.bots[0]) {
       const head = state.bots[0];
-      const remaining = (frame.flashUntil - frame.time) / 260;
-      ctx.globalAlpha = Math.max(0, Math.min(1, remaining));
+      const k = sinceSpawn / FLASH_MS;
+      ctx.globalAlpha = reduced ? 0.8 : 1 - k;
       ctx.strokeStyle = COLOURS.flash;
       ctx.lineWidth = scale;
-      const grow = (1 - remaining) * cell * 0.6;
+      const grow = reduced ? scale : k * cell * 0.6;
       ctx.strokeRect(head.x * cell - grow, head.y * cell - grow, cell + grow * 2, cell + grow * 2);
       ctx.globalAlpha = 1;
     }
+
+    if (this.vignette) {
+      const sinceStart = now - visual.startedAt;
+      const playing = state.status === 'running' || state.status === 'paused';
+      let alpha = playing ? VIGNETTE_PLAY : VIGNETTE_IDLE;
+      if (playing && sinceStart >= 0 && sinceStart < VIGNETTE_FADE_MS && !reduced) {
+        alpha = VIGNETTE_IDLE + (VIGNETTE_PLAY - VIGNETTE_IDLE) * (sinceStart / VIGNETTE_FADE_MS);
+      }
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(this.vignette, 0, 0);
+      ctx.globalAlpha = 1;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 }

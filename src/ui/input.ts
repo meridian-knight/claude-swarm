@@ -28,11 +28,30 @@ const KEY_DIRECTIONS: Readonly<Record<string, Direction>> = {
 };
 
 const SWIPE_MIN_PX = 20;
+const PRESSED_MS = 140;
 
 export function bindInput(
   handlers: InputHandlers,
   elements: { canvas: HTMLCanvasElement; dpad: HTMLElement; action: HTMLButtonElement; pause: HTMLButtonElement },
 ): void {
+  const pressTimers = new Map<Direction, number>();
+  /** Lights up the matching D-pad button briefly (visible on touch layouts only). */
+  const highlight = (dir: Direction): void => {
+    const btn = elements.dpad.querySelector<HTMLElement>(`[data-dir="${dir}"]`);
+    if (!btn) return;
+    btn.classList.add('pressed');
+    const existing = pressTimers.get(dir);
+    if (existing !== undefined) window.clearTimeout(existing);
+    pressTimers.set(
+      dir,
+      window.setTimeout(() => btn.classList.remove('pressed'), PRESSED_MS),
+    );
+  };
+  const steer = (dir: Direction): void => {
+    highlight(dir);
+    handlers.onDirection(dir);
+  };
+
   window.addEventListener(
     'keydown',
     (e) => {
@@ -40,7 +59,7 @@ export function bindInput(
       if (dir) {
         e.preventDefault();
         handlers.onGesture();
-        handlers.onDirection(dir);
+        steer(dir);
         return;
       }
       if (e.key === ' ' || e.code === 'Space') {
@@ -67,13 +86,13 @@ export function bindInput(
     if (!dir) return;
     e.preventDefault();
     handlers.onGesture();
-    handlers.onDirection(dir);
+    steer(dir);
   });
   // Keyboard activation of d-pad buttons (Enter/Space on a focused button).
   elements.dpad.addEventListener('click', (e) => {
     const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-dir]');
     const dir = target?.dataset.dir as Direction | undefined;
-    if (dir && (e as PointerEvent).pointerType === '') handlers.onDirection(dir);
+    if (dir && (e as PointerEvent).pointerType === '') steer(dir);
   });
 
   elements.action.addEventListener('click', () => {
@@ -99,8 +118,8 @@ export function bindInput(
     const dy = e.clientY - start.y;
     start = null;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return;
-    if (Math.abs(dx) > Math.abs(dy)) handlers.onDirection(dx > 0 ? 'right' : 'left');
-    else handlers.onDirection(dy > 0 ? 'down' : 'up');
+    if (Math.abs(dx) > Math.abs(dy)) steer(dx > 0 ? 'right' : 'left');
+    else steer(dy > 0 ? 'down' : 'up');
   };
   elements.canvas.addEventListener('pointerup', finish);
   elements.canvas.addEventListener('pointercancel', () => {

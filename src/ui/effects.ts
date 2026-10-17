@@ -2,6 +2,8 @@ import type { Point } from '../game/types';
 
 /** Short-lived DOM labels floating over the board (e.g. "Agent spawned!"). */
 export class Effects {
+  private current: HTMLElement | null = null;
+
   constructor(
     private readonly layer: HTMLElement,
     private readonly canvas: HTMLCanvasElement,
@@ -9,6 +11,8 @@ export class Effects {
   ) {}
 
   spawned(at: Point): void {
+    // Only one label at a time, so a fast streak never piles text over the board.
+    this.current?.remove();
     const cell = this.canvas.clientWidth / this.cols;
     const node = document.createElement('div');
     node.className = 'effect-spawned';
@@ -17,7 +21,11 @@ export class Effects {
     node.style.left = `${this.canvas.offsetLeft + (at.x + 0.5) * cell}px`;
     node.style.top = `${this.canvas.offsetTop + at.y * cell}px`;
     this.layer.appendChild(node);
-    const remove = (): void => node.remove();
+    this.current = node;
+    const remove = (): void => {
+      node.remove();
+      if (this.current === node) this.current = null;
+    };
     node.addEventListener('animationend', remove, { once: true });
     window.setTimeout(remove, 900);
   }
