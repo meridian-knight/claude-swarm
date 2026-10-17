@@ -67,6 +67,8 @@ npm run shots        # regenerate the README screenshots (run npm run preview fi
 
 On phones the start screen shows a one-line hint; the full control legend lives in the in-game help dialog (`?`).
 
+Resuming work later? Start with [docs/PROJECT-CONTEXT.md](docs/PROJECT-CONTEXT.md): architecture, brand rules, decisions, release process and history, and read-only live checks (`node scripts/verify-live.mjs`, `scripts/audit-start.mjs`, `scripts/audit-help.mjs`).
+
 ## Deploy
 
 Pushing to `main` runs [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml), which installs from the lockfile, typechecks, runs the unit tests, builds, and publishes `dist/` to GitHub Pages (repository setting: Pages → Source → GitHub Actions). Asset paths are relative, so the build works at a domain root or under the repository sub-path.
