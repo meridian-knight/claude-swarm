@@ -5,46 +5,16 @@
 import { chromium } from '@playwright/test';
 import { writeFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+// The game's own grids (Node strips the types; art.ts has no runtime imports).
+import { botGrid, tokenGrid } from '../src/ui/art.ts';
 
 const out = process.argv[2] ?? 'public';
 const previewName = process.argv[3] ?? 'social-preview-v4.png';
 mkdirSync(out, { recursive: true });
 
-const SHARED = { E: '#2a1810', M: '#160c07', G: '#ffe9d6', K: '#f7c948', A: '#f3e6cf', S: '#b8862a', C: '#f3e6cf', H: '#fff6e6', T: '#d97757', P: '#9a4f36' };
-const TONES = {
-  leader: { D: '#7a3b22', O: '#e8895f', L: '#f8b98e', g: '#5a2c1a', d: '#c76a4a' },
-  a: { D: '#7a3b22', O: '#d97757', L: '#f4a97a', g: '#5a2c1a', d: '#b85f42' },
-  b: { D: '#73361f', O: '#cf6d4e', L: '#eb9c70', g: '#52281a', d: '#ad5839' },
-};
-const blank = () => Array.from({ length: 12 }, () => Array(12).fill('.'));
-const put = (g, x, y, k) => { if (x >= 0 && y >= 0 && x < 12 && y < 12) g[y][x] = k; };
-
-function agent(kind, tone, legFrame = 0, gaze = 'centre') {
-  const g = blank();
-  for (let x = 1; x <= 10; x++) { put(g, x, 1, 'D'); put(g, x, 8, 'D'); }
-  for (let y = 2; y <= 7; y++) { put(g, 0, y, 'D'); put(g, 11, y, 'D'); for (let x = 1; x <= 10; x++) put(g, x, y, 'O'); }
-  put(g, 1, 2, 'L'); put(g, 2, 2, 'L'); put(g, 1, 3, 'L');
-  if (kind === 'head') put(g, 5, 0, 'A');
-  let ex = 0; if (gaze === 'right') ex = 1; if (gaze === 'left') ex = -1;
-  for (const bx of [3, 7]) {
-    if (kind === 'head') { put(g, bx + ex, 3, 'E'); put(g, bx + 1 + ex, 3, 'E'); put(g, bx + ex, 4, 'E'); put(g, bx + 1 + ex, 4, 'E'); put(g, bx + ex, 3, 'G'); }
-    else { put(g, bx, 3, 'd'); put(g, bx + 1, 3, 'd'); put(g, bx, 4, 'E'); put(g, bx + 1, 4, 'E'); }
-  }
-  if (kind === 'head') for (let x = 4; x <= 7; x++) put(g, x, 6, 'E'); else { put(g, 5, 6, 'E'); put(g, 6, 6, 'E'); }
-  for (const x of [[1, 4, 7, 10], [2, 4, 7, 9]][legFrame]) { put(g, x, 9, 'g'); put(g, x, 10, 'g'); }
-  return { g, pal: { ...SHARED, ...TONES[tone] } };
-}
-function chip() {
-  const g = blank();
-  for (let i = 3; i <= 8; i++) { put(g, i, 2, 'T'); put(g, i, 9, 'T'); put(g, 2, i, 'T'); put(g, 9, i, 'T'); }
-  for (let y = 3; y <= 8; y++) for (let x = 3; x <= 8; x++) put(g, x, y, 'C');
-  put(g, 3, 3, 'H'); put(g, 4, 3, 'H'); put(g, 3, 4, 'H');
-  for (const i of [4, 7]) { put(g, i, 1, 'P'); put(g, i, 10, 'P'); put(g, 1, i, 'P'); put(g, 10, i, 'P'); }
-  for (const y of [5, 6]) for (const x of [5, 6]) put(g, x, y, 'K');
-  for (const c of [5, 6]) { put(g, c, 3, 'T'); put(g, c, 8, 'T'); put(g, 3, c, 'T'); put(g, 8, c, 'T'); }
-  return { g, pal: SHARED };
-}
-const rects = ({ g, pal }, ox = 0, oy = 0) => g.flatMap((row, y) => row.map((k, x) => pal[k] ? `<rect x="${ox + x}" y="${oy + y}" width="1" height="1" fill="${pal[k]}"/>` : '').filter(Boolean)).join('');
+const agent = (kind, tone, legFrame = 0, gaze = 'centre') => botGrid({ kind, dir: 'right', legFrame, face: 'open', tone, gaze });
+const chip = () => tokenGrid(0);
+const rects = ({ grid, palette }, ox = 0, oy = 0) => grid.flatMap((row, y) => row.map((k, x) => palette[k] ? `<rect x="${ox + x}" y="${oy + y}" width="1" height="1" fill="${palette[k]}"/>` : '').filter(Boolean)).join('');
 const svgDoc = (w, h, body, bg = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" shape-rendering="crispEdges">${bg}${body}</svg>`;
 
 // --- favicon.svg: the leader agent, transparent background
