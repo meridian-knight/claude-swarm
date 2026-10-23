@@ -4,9 +4,7 @@ export interface InputHandlers {
   onDirection(dir: Direction): void;
   /** Space key or the pause chip. */
   onPause(): void;
-  /** Enter key: start, restart or resume. */
-  onEnter(): void;
-  /** The big overlay button: start, resume or restart depending on status. */
+  /** Enter key or the big overlay button: start, resume or restart depending on status. */
   onAction(): void;
   /** Any first user gesture (used to unlock audio). */
   onGesture(): void;
@@ -82,7 +80,7 @@ export function bindInput(
         e.preventDefault();
         if (e.repeat) return;
         handlers.onGesture();
-        handlers.onEnter();
+        handlers.onAction();
       }
     },
     { passive: false },

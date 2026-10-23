@@ -32,7 +32,6 @@ export class Hud {
   private readonly best = el<HTMLElement>('best');
   private readonly bots = el<HTMLElement>('bots');
   private readonly overlay = el<HTMLElement>('overlay');
-  private readonly title = el<HTMLElement>('overlay-title');
   private readonly text = el<HTMLElement>('overlay-text');
   private readonly keys = el<HTMLElement>('overlay-keys');
   private readonly controls = el<HTMLElement>('overlay-controls');
@@ -114,25 +113,25 @@ export class Hud {
     this.hint.textContent = status === 'idle' && touch ? 'Use the D-pad or swipe to move.' : '';
     switch (status) {
       case 'idle':
-        this.title.textContent = 'Claude Swarm';
+        this.titleNode.textContent = 'Claude Swarm';
         this.text.textContent = 'Consume tokens. Spawn agents. Grow your swarm.';
         this.keys.textContent = 'Avoid the walls and your own swarm.';
         this.actionButton.textContent = 'Start';
         break;
       case 'paused':
-        this.title.textContent = 'Paused';
+        this.titleNode.textContent = 'Paused';
         this.text.textContent = 'The swarm is holding position.';
         this.keys.textContent = touch ? 'Tap Resume to continue' : 'Space or Enter to resume';
         this.actionButton.textContent = 'Resume';
         break;
       case 'over':
-        this.title.textContent = 'Game over';
+        this.titleNode.textContent = 'Game over';
         this.text.textContent = newBest ? `New best: ${score} tokens!` : `Score ${score} · Best ${best}`;
         this.keys.textContent = touch ? 'Tap Restart to try again' : 'Enter to restart';
         this.actionButton.textContent = 'Restart';
         break;
       case 'won':
-        this.title.textContent = 'Swarm complete!';
+        this.titleNode.textContent = 'Swarm complete!';
         this.text.textContent = `Every cell is an agent. Score ${score}.`;
         this.keys.textContent = touch ? 'Tap to play again' : 'Enter to play again';
         this.actionButton.textContent = 'Play again';

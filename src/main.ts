@@ -58,7 +58,7 @@ const rng: Rng = seedParam !== null && seedParam !== '' ? seededRng(Number(seedP
 const canvas = document.getElementById('board') as HTMLCanvasElement;
 const screen = document.getElementById('screen') as HTMLElement;
 const effectsLayer = document.getElementById('effects') as HTMLElement;
-const dpad = document.querySelector<HTMLElement>('.dpad');
+const dpad = document.querySelector('.dpad') as HTMLElement;
 if (!dpad) throw new Error('Missing d-pad');
 
 const hud = new Hud();
@@ -104,7 +104,7 @@ const frameTimes: number[] = [];
 
 function syncHud(delayMs = 0): void {
   mascot.setMode(state.status === 'over' ? 'over' : state.status === 'won' ? 'won' : 'idle');
-  dpad?.setAttribute('aria-disabled', String(state.status !== 'running' && state.status !== 'paused'));
+  dpad.setAttribute('aria-disabled', String(state.status !== 'running' && state.status !== 'paused'));
   hud.setStats({ score: state.score, best, bots: state.bots.length });
   hud.setOverlay({ status: state.status, score: state.score, best, newBest: best > bestAtRunStart }, delayMs);
 }
@@ -165,17 +165,10 @@ bindInput(
   {
     onDirection(dir: Direction) {
       // Direction input only steers a running game; Start / Enter begin one.
-      const next = queueDirection(state, dir);
-      if (next !== state) {
-        state = next;
-      }
+      state = queueDirection(state, dir);
     },
     onPause() {
       apply(togglePause(state));
-    },
-    onEnter() {
-      if (state.status === 'paused') apply(togglePause(state));
-      else startOrRestart();
     },
     onAction() {
       if (state.status === 'paused') apply(togglePause(state));
@@ -283,8 +276,10 @@ resize();
 function frame(now: number): void {
   const dt = Math.min(now - lastFrame, 250);
   lastFrame = now;
-  frameTimes.push(dt);
-  if (frameTimes.length > 120) frameTimes.shift();
+  if (testMode) {
+    frameTimes.push(dt);
+    if (frameTimes.length > 120) frameTimes.shift();
+  }
 
   if (state.status === 'running') {
     accumulator += dt;

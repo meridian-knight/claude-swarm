@@ -285,7 +285,9 @@ export class Renderer {
       const squashing = !reduced && i === n - 1 && n > 1 && squashAge >= 0 && squashAge < SQUASH_MS;
       if (squashing) legs = 2;
 
-      const sprite = this.sprite(`${kind}:${state.dir}:${legs}:${face}:${tone}:${cell}`, () =>
+      // Only the head's eyes follow the heading, so body sprites share one cache entry per look.
+      const gazeKey = isHead ? state.dir : '-';
+      const sprite = this.sprite(`${kind}:${gazeKey}:${legs}:${face}:${tone}:${cell}`, () =>
         botSprite({ kind, dir: state.dir, legFrame: legs, face, tone }, scale),
       );
       const dx = this.snap(fx);
