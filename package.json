@@ -1,10 +1,13 @@
 {
   "name": "claude-swarm",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.5",
   "type": "module",
   "description": "Claude Swarm - an unofficial Snake-style fan game: consume tokens, spawn agents, grow your swarm. Built by CyberSquad0 + Claude.",
-  "author": { "name": "CyberSquad0", "url": "https://www.cs0.dev" },
+  "author": {
+    "name": "CyberSquad0",
+    "url": "https://www.cs0.dev"
+  },
   "homepage": "https://meridian-knight.github.io/claude-swarm/",
   "scripts": {
     "dev": "vite",

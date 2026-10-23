@@ -1,6 +1,6 @@
 # Claude Swarm: project context and handover
 
-Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Last updated for release 1.2.2 (commit `6073e3f`, 2026-10-17).
+Read this first when resuming development. It records what the game is, the decisions that shaped it, how it is built, tested and deployed, and what is still open. Last updated 2026-10-23, after the post-1.2.5 audit cleanup (keyboard activation, dev/e2e-only test hook, dead code, shared sprite grids).
 
 ## What it is
 

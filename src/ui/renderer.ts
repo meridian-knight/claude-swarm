@@ -65,28 +65,23 @@ export class Renderer {
 
   /**
    * Sizes the canvas to fit `availableW × availableH` CSS pixels (the frame's
-   * content box). One rule: a cell is a whole number of device pixels, the
-   * backing store is `cols × cellDevice`, and the CSS box is exactly
-   * `backing / devicePixelRatio`. The canvas therefore maps 1:1 to device
-   * pixels and is never resampled by the browser; resampling is what dropped
-   * the 1-px grid lines on phones (a 960 px backing drawn into 927 device px
-   * lost every other line under nearest-neighbour sampling). Cells are square
-   * by construction and no CSS clamps are involved. Works for rows ≠ cols.
+   * content box) so that it maps 1:1 to device pixels: a cell is a whole
+   * number of device pixels, the backing store is `cols × cellDevice`, and
+   * the CSS box is exactly `backing / devicePixelRatio`. Any resampling by the
+   * browser drops or doubles the 1 px grid lines, so none is allowed.
    */
   resize(availableW: number, availableH: number): void {
     const dpr = window.devicePixelRatio || 1;
     const availW = Math.max(1, availableW);
     const availH = Math.max(1, availableH);
-    // Largest square cell that fits both axes, in CSS px, then in whole device px.
     const cellFit = Math.min(availW / this.cols, availH / this.rows);
-    // Below 12 device px per cell (a collapsed frame) sprites lose pixels, but
+    // Under 12 device px per cell (a collapsed frame) sprites lose pixels, but
     // the canvas still fits the box and still maps 1:1.
     const largest = Math.max(1, Math.floor(cellFit * dpr));
-    // The CSS box must also be a whole number of CSS px: engines position a
-    // fractional box (e.g. 940 device px = 313.33 CSS px at 3x) off the pixel
-    // grid and drift or drop 1 px lines even at a 1:1 size. Take the largest
-    // cell within 10% of the fit whose box is whole on both axes; if the ratio
-    // allows none (e.g. 2.75x needs steps of 11 px), fall back to the plain fit.
+    // The CSS box must also be a whole number of CSS px: engines place a
+    // fractional box off the pixel grid and drift or drop lines even at 1:1.
+    // Take the largest cell within 10% of the fit whose box is whole on both
+    // axes; if the ratio allows none (2.75x would need 11 px steps), use the fit.
     const wholeCss = (c: number): boolean => {
       const w = (this.cols * c) / dpr;
       const h = (this.rows * c) / dpr;
@@ -109,7 +104,6 @@ export class Renderer {
     this.scale = cellDevice / SPRITE_PX;
     this.canvas.width = this.cols * cellDevice;
     this.canvas.height = this.rows * cellDevice;
-    // Exact CSS size (no trimming: even a 0.999 factor would resample).
     this.canvas.style.width = `${(this.cols * cellDevice) / dpr}px`;
     this.canvas.style.height = `${(this.rows * cellDevice) / dpr}px`;
     this.cache.clear();
