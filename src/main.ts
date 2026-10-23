@@ -50,6 +50,8 @@ const OVER_OVERLAY_DELAY_MS = 450;
 const WON_OVERLAY_DELAY_MS = 700;
 
 const params = new URLSearchParams(window.location.search);
+/** The window.__swarm hook exists only in dev and `vite build --mode e2e` bundles; production never ships it. */
+const testMode = (import.meta.env.DEV || import.meta.env.MODE === 'e2e') && params.has('test');
 const seedParam = params.get('seed');
 const rng: Rng = seedParam !== null && seedParam !== '' ? seededRng(Number(seedParam) || 0) : defaultRng;
 
@@ -310,7 +312,7 @@ window.requestAnimationFrame((t) => {
   frame(t);
 });
 
-if (params.has('test')) {
+if (testMode) {
   window.__swarm = {
     getState: () => state,
     placeToken(p: Point) {

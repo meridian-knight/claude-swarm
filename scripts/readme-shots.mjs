@@ -1,4 +1,5 @@
-// README screenshots from the production preview. Usage: npm run preview (port 4173) then: npm run shots
+// README screenshots from a local preview. Needs the window.__swarm hook, which only the e2e build has:
+// npm run build:e2e && npm run preview (port 4173), then: npm run shots
 import { chromium, devices } from '@playwright/test';
 const out = process.argv[2] ?? 'docs';
 const browser = await chromium.launch();

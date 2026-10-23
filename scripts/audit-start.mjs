@@ -44,7 +44,7 @@ for (const [name, w, h, dpr] of cases) {
   await page.locator('#help-close').tap();
   // Game over
   await page.locator('#action-btn').tap();
-  await page.waitForFunction(() => window.__swarm.getState().status === 'over', null, { timeout: 15000 });
+  await page.waitForFunction(() => document.body.dataset.status === 'over', null, { timeout: 15000 });
   await page.waitForTimeout(700);
   const go = await page.evaluate(() => {
     const box = (sel) => { const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') return null; const b = el.getBoundingClientRect(); return { y: Math.round(b.y), h: Math.round(b.height) }; };

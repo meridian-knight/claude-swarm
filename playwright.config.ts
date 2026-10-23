@@ -49,7 +49,8 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `npm run build && npm run preview -- --port ${PORT} --strictPort --host 127.0.0.1`,
+      // The e2e build keeps the window.__swarm hook; `npm run build` (production) drops it.
+      command: `npm run build:e2e && npm run preview -- --port ${PORT} --strictPort --host 127.0.0.1`,
       url: BASE_URL,
       reuseExistingServer: true,
       timeout: 120_000,

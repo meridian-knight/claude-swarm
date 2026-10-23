@@ -33,7 +33,8 @@ src/ui/        renderer (canvas, sprite cache, interpolation, vignette), sprites
                touch only), layout (moves pause/help/sound between HUD and deck), mascot,
                effects, controls (legend markup), storage (localStorage best + mute).
 src/main.ts    wiring, rAF loop with accumulator, pause on blur/pagehide/visibility,
-               ?test hook (window.__swarm) used by browser tests, ?seed for determinism.
+               ?test hook (window.__swarm) used by browser tests, present only in dev and
+               `vite build --mode e2e` bundles (never in production); ?seed for determinism.
 index.html     markup, metadata, CSP (injected at build by vite.config.ts), JSON-LD.
 src/style.css  retro handheld theme; breakpoints for touch (coarse pointer or <=700px),
                short phones (<=680px tall), narrow (<=400px, <=340px), tablets, short landscape.
@@ -72,10 +73,13 @@ npm run typecheck
 npm test               # unit tests
 npm run test:e2e       # Playwright matrix (needs: npx playwright install chromium)
 npm run build          # dist/
+npm run build:e2e      # dist/ with the window.__swarm hook (what Playwright serves)
 npm run preview        # serve dist/ on 4173
 npm run assets         # regenerate icons + social preview (bump the version first)
-npm run shots          # README screenshots (run npm run preview first)
-node scripts/verify-live.mjs [url]   # 61 live checks, desktop + Pixel 7 emulation
+npm run shots          # README screenshots (run npm run build:e2e && npm run preview first)
+node scripts/verify-live.mjs [url]   # live checks, desktop + Pixel 7 emulation; hook-dependent
+                                     # checks are skipped on production (no __swarm); run
+                                     # npm run build first so the byte-equal check uses a production dist
 node scripts/audit-start.mjs         # start screen / deck fit across 11 phone viewports
 node scripts/audit-help.mjs          # help dialog fit across 6 viewports
 ```
