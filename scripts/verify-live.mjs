@@ -124,6 +124,8 @@ async function session(label, ctxOpts, touch) {
   await page.waitForTimeout(600);
   const over = await page.evaluate(() => ({ mode: document.getElementById('mascot').dataset.mode, frame: document.getElementById('mascot').dataset.frame, hidden: document.getElementById('mascot').hidden }));
   check(`${label}: game-over mascot dizzy`, over.mode === 'over' && over.frame === 'centre:dizzy:0:0:1' && !over.hidden, JSON.stringify(over));
+  // Closing the help dialog restored focus to its button, where Enter would reopen it.
+  await page.locator('#help-btn').blur();
   if (touch) await page.locator('#action-btn').tap(); else await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.body.dataset.status === 'running');
   check(`${label}: restart`, (await page.evaluate(() => document.getElementById('bots').textContent)) === '1');
