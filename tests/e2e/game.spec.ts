@@ -433,6 +433,8 @@ test.describe('instructions and mascot', () => {
     await expect(page.locator('body')).toHaveAttribute('data-status', 'idle');
     await expect(page.locator('#overlay')).toBeVisible();
 
+    // Closing returned focus to the help button, where Enter/Space would reopen it.
+    await page.locator('#help-btn').blur();
     await page.keyboard.press('Enter');
     await page.keyboard.press('Space');
     await expect(page.locator('body')).toHaveAttribute('data-status', 'paused');
@@ -1166,5 +1168,59 @@ test.describe('square cells', () => {
     else await page.keyboard.press('Enter');
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
     await expectSquare(page, 'restart');
+  });
+});
+
+test.describe('keyboard activation', () => {
+  test('Enter and Space activate the focused button instead of being swallowed by the game keys', async ({ page, hasTouch }) => {
+    const body = page.locator('body');
+    // Start screen: Space on the focused Start button starts the game.
+    await page.locator('#action-btn').focus();
+    await page.keyboard.press('Space');
+    await expect(body).toHaveAttribute('data-status', 'running');
+
+    // D-pad arms (visible and enabled during play on touch layouts): Enter and Space steer.
+    if (hasTouch) {
+      const heading = (await getState(page)).dir;
+      const [first, second] = heading === 'left' || heading === 'right' ? ['up', 'left'] : ['left', 'up'];
+      await page.locator(`[data-dir="${first}"]`).focus();
+      await page.keyboard.press('Enter');
+      await expect.poll(async () => (await getState(page)).dir, { timeout: 3000 }).toBe(first);
+      await page.locator(`[data-dir="${second}"]`).focus();
+      await page.keyboard.press('Space');
+      await expect.poll(async () => (await getState(page)).dir, { timeout: 3000 }).toBe(second);
+    }
+
+    // Pause chip: Enter pauses (not restart), Space resumes.
+    await page.locator('#pause-btn').focus();
+    await page.keyboard.press('Enter');
+    await expect(body).toHaveAttribute('data-status', 'paused');
+
+    // Mute chip: Enter and Space each toggle it.
+    const mute = page.locator('#mute-btn');
+    const wasMuted = (await mute.getAttribute('aria-pressed')) === 'true';
+    await mute.focus();
+    await page.keyboard.press('Enter');
+    await expect(mute).toHaveAttribute('aria-pressed', String(!wasMuted));
+    await mute.focus();
+    await page.keyboard.press('Space');
+    await expect(mute).toHaveAttribute('aria-pressed', String(wasMuted));
+
+    // Help chip: Enter opens the dialog, Escape closes it, Space opens it again.
+    const help = page.locator('#help');
+    await page.locator('#help-btn').focus();
+    await page.keyboard.press('Enter');
+    await expect(help).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(help).toBeHidden();
+    await page.locator('#help-btn').focus();
+    await page.keyboard.press('Space');
+    await expect(help).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(help).toBeHidden();
+
+    await page.locator('#pause-btn').focus();
+    await page.keyboard.press('Space');
+    await expect(body).toHaveAttribute('data-status', 'running');
   });
 });

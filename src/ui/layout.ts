@@ -4,6 +4,8 @@
  * handlers are used in both places; only their container changes.
  */
 export const TOUCH_LAYOUT_QUERY = '(pointer: coarse), (max-width: 700px)';
+/** The one touch-layout query every module reads, so layout, copy and legends agree. */
+export const touchLayout = window.matchMedia(TOUCH_LAYOUT_QUERY);
 
 export interface LayoutElements {
   hudButtons: HTMLElement;
@@ -14,7 +16,7 @@ export interface LayoutElements {
 }
 
 export function bindLayout(els: LayoutElements, onChange?: (touch: boolean) => void): () => boolean {
-  const mq = window.matchMedia(TOUCH_LAYOUT_QUERY);
+  const mq = touchLayout;
   const apply = (): void => {
     if (mq.matches) {
       els.deckLeft.append(els.pause, els.help, els.mute);

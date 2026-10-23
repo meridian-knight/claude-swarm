@@ -1,5 +1,6 @@
 import type { Status } from '../game/types';
 import { renderControls } from './controls';
+import { touchLayout } from './layout';
 
 export interface HudStats {
   score: number;
@@ -26,8 +27,6 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-const TOUCH = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
-
 export class Hud {
   private readonly score = el<HTMLElement>('score');
   private readonly best = el<HTMLElement>('best');
@@ -52,9 +51,14 @@ export class Hud {
   private closeTimer: number | null = null;
 
   constructor() {
-    renderControls(this.controls, TOUCH);
+    this.renderLegends();
+    touchLayout.addEventListener('change', () => this.renderLegends());
+  }
+
+  private renderLegends(): void {
+    renderControls(this.controls, touchLayout.matches);
     const helpControls = document.getElementById('help-controls');
-    if (helpControls) renderControls(helpControls, TOUCH);
+    if (helpControls) renderControls(helpControls, touchLayout.matches);
   }
 
   setStats(stats: HudStats): void {
@@ -105,8 +109,9 @@ export class Hud {
     this.eyebrow.hidden = status !== 'idle';
     this.controls.hidden = status !== 'idle';
     this.keys.hidden = false;
-    this.hint.hidden = !(status === 'idle' && TOUCH);
-    this.hint.textContent = status === 'idle' && TOUCH ? 'Use the D-pad or swipe to move.' : '';
+    const touch = touchLayout.matches;
+    this.hint.hidden = !(status === 'idle' && touch);
+    this.hint.textContent = status === 'idle' && touch ? 'Use the D-pad or swipe to move.' : '';
     switch (status) {
       case 'idle':
         this.title.textContent = 'Claude Swarm';
@@ -117,19 +122,19 @@ export class Hud {
       case 'paused':
         this.title.textContent = 'Paused';
         this.text.textContent = 'The swarm is holding position.';
-        this.keys.textContent = TOUCH ? 'Tap Resume to continue' : 'Space or Enter to resume';
+        this.keys.textContent = touch ? 'Tap Resume to continue' : 'Space or Enter to resume';
         this.actionButton.textContent = 'Resume';
         break;
       case 'over':
         this.title.textContent = 'Game over';
         this.text.textContent = newBest ? `New best: ${score} tokens!` : `Score ${score} · Best ${best}`;
-        this.keys.textContent = TOUCH ? 'Tap Restart to try again' : 'Enter to restart';
+        this.keys.textContent = touch ? 'Tap Restart to try again' : 'Enter to restart';
         this.actionButton.textContent = 'Restart';
         break;
       case 'won':
         this.title.textContent = 'Swarm complete!';
         this.text.textContent = `Every cell is an agent. Score ${score}.`;
-        this.keys.textContent = TOUCH ? 'Tap to play again' : 'Enter to play again';
+        this.keys.textContent = touch ? 'Tap to play again' : 'Enter to play again';
         this.actionButton.textContent = 'Play again';
         break;
     }

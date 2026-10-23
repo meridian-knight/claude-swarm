@@ -29,6 +29,9 @@ const KEY_DIRECTIONS: Readonly<Record<string, Direction>> = {
   D: 'right',
 };
 
+/** Enter and Space on one of these are its own activation keys, not game input. */
+const INTERACTIVE = 'button, a, input, select, textarea, [contenteditable]';
+
 const SWIPE_MIN_PX = 20;
 const PRESSED_MS = 140;
 /** A second D-pad arm pressed within this window counts as a diagonal slip and is ignored. */
@@ -67,6 +70,7 @@ export function bindInput(
         steer(dir);
         return;
       }
+      if (e.target instanceof Element && e.target.closest(INTERACTIVE)) return;
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         if (e.repeat) return;
