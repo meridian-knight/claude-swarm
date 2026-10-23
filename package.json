@@ -1,7 +1,7 @@
 {
   "name": "claude-swarm",
   "private": true,
-  "version": "1.2.5",
+  "version": "1.2.6",
   "type": "module",
   "description": "Claude Swarm - an unofficial Snake-style fan game: consume tokens, spawn agents, grow your swarm. Built by CyberSquad0 + Claude.",
   "author": {
@@ -20,7 +20,9 @@
     "assets": "node scripts/make-assets.mjs",
     "shots": "node scripts/readme-shots.mjs docs"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "@playwright/test": "1.60.0",
     "typescript": "5.9.3",

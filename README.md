@@ -64,7 +64,7 @@ npm run assets       # regenerate icons and the social preview from the sprite g
 npm run shots        # regenerate the README screenshots (run npm run build:e2e && npm run preview first)
 ```
 
-`npm run test:e2e` needs Playwright’s Chromium: `npx playwright install chromium`.
+`npm run test:e2e` needs Playwright’s Chromium and WebKit: `npx playwright install chromium webkit`.
 
 On phones the start screen shows a one-line hint; the full control legend lives in the in-game help dialog (`?`).
 
