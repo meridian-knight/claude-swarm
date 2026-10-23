@@ -151,7 +151,7 @@ test.describe('keyboard play', () => {
     expect((await getState(page)).status).toBe('running');
   });
 
-  test('collecting a token spawns a bot, scores and shows the effect', async ({ page }) => {
+  test('collecting a token spawns an agent, scores and shows the effect', async ({ page }) => {
     await page.keyboard.press('Enter');
     const effect = page.locator('[data-effect="spawned"]');
     const sawEffect = effect.first().waitFor({ state: 'visible', timeout: 5_000 });
@@ -285,7 +285,7 @@ test.describe('touch play', () => {
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
   });
 
-  test('collecting a token on touch spawns a bot', async ({ page }) => {
+  test('collecting a token on touch spawns an agent', async ({ page }) => {
     await page.locator('#action-btn').tap();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
     await placeTokenAhead(
@@ -566,7 +566,7 @@ test.describe('chip tokens', () => {
     expect(seen.size).toBe(2);
   });
 
-  test('collecting a chip bursts briefly and still spawns a bot', async ({ page, isMobile }) => {
+  test('collecting a chip bursts briefly and still spawns an agent', async ({ page, isMobile }) => {
     await page.locator('#action-btn').click();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
     const pause = isMobile ? () => page.locator('#pause-btn').tap() : () => page.keyboard.press('Space');
@@ -828,10 +828,10 @@ test.describe('mobile readiness', () => {
     const before = await getState(page);
     const canvasBefore = await page.evaluate(() => (document.getElementById('board') as HTMLCanvasElement).clientWidth);
 
-    // Shrink by 20% but never below 320px, the narrowest phone we support.
+    // Shrink by 20%, but never below 320x480 (the smallest supported phone) and never grow.
     await page.setViewportSize({
-      width: Math.max(320, Math.round(viewport!.width * 0.8)),
-      height: Math.max(480, Math.round(viewport!.height * 0.8)),
+      width: Math.min(viewport!.width, Math.max(320, Math.round(viewport!.width * 0.8))),
+      height: Math.min(viewport!.height, Math.max(480, Math.round(viewport!.height * 0.8))),
     });
     await page.waitForTimeout(250);
     const after = await getState(page);
@@ -990,7 +990,7 @@ test.describe('mobile readiness', () => {
     await expect(page.locator('#action-btn')).toHaveText('Restart');
   });
 
-  test('a 150-bot chain renders within the frame budget', async ({ page, hasTouch }, testInfo) => {
+  test('a 150-agent chain renders within the frame budget', async ({ page, hasTouch }, testInfo) => {
     await page.locator('#action-btn').click();
     await expect(page.locator('body')).toHaveAttribute('data-status', 'running');
     await page.evaluate(() => (window as unknown as ReadyWindow).__swarm.setChain(150));

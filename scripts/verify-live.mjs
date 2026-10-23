@@ -1,7 +1,8 @@
 import { chromium, devices } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 // Read-only live checks (desktop + Pixel 7 emulation). Usage: node scripts/verify-live.mjs [baseUrl]
-const BASE = process.argv[2] ?? 'https://meridian-knight.github.io/claude-swarm/';
+const HOME = 'https://meridian-knight.github.io/claude-swarm/'; // canonical URL baked into index.html
+const BASE = process.argv[2] ?? HOME;
 const browser = await chromium.launch();
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`); };
@@ -26,6 +27,8 @@ async function session(label, ctxOpts, touch) {
   const hosts = new Set();
   page.on('request', (r) => hosts.add(new URL(r.url()).host));
   const state = () => page.evaluate(() => window.__swarm.getState());
+  /** True when `fn` becomes truthy in time; a timeout becomes a FAIL instead of a crash. */
+  const settles = async (fn, timeout = 3000) => { try { await page.waitForFunction(fn, null, { timeout }); return true; } catch { return false; } };
 
   const res = await page.goto(BASE + '?test', { waitUntil: 'load' });
   check(`${label}: direct load`, res.status() === 200);
@@ -45,7 +48,7 @@ async function session(label, ctxOpts, touch) {
   }));
   check(`${label}: title credits CyberSquad0`, meta.title === 'Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | CyberSquad0', meta.title);
   check(`${label}: description (agents copy, CyberSquad0 credit)`, (meta.desc || '').startsWith('Consume tokens, spawn agents and grow your swarm.') && (meta.desc || '').endsWith('Built by CyberSquad0 + Claude.'), meta.desc);
-  check(`${label}: canonical + og:image v4`, meta.canonical === BASE && meta.ogImage === BASE + 'social-preview-v4.png');
+  check(`${label}: canonical + og:image v4`, meta.canonical === HOME && meta.ogImage === HOME + 'social-preview-v4.png');
   check(`${label}: start copy`, meta.startText === 'Consume tokens. Spawn agents. Grow your swarm.' && meta.rule === 'Avoid the walls and your own swarm.');
   check(`${label}: scoreboard says Agents`, meta.agentsLabel === true);
   check(`${label}: header mascot drawn`, meta.hudMascot > 0 && meta.hudMascot <= 28, `${meta.hudMascot}px`);
@@ -89,8 +92,7 @@ async function session(label, ctxOpts, touch) {
     const board = await page.evaluate(() => window.__swarm.boardMetrics());
     check(`${label}: board maps 1:1 to device pixels, square cells`, board.oneToOne === true && board.squareOK === true && Number.isInteger(board.cellDevice), JSON.stringify(board));
     if (touch) await page.locator('[data-dir="up"]').tap(); else await page.keyboard.press('ArrowUp');
-    await page.waitForFunction(() => window.__swarm.getState().dir === 'up', null, { timeout: 3000 });
-    check(`${label}: steer`, true);
+    check(`${label}: steer`, await settles(() => window.__swarm.getState().dir === 'up'));
     const hap = await page.evaluate(() => ({ s: window.__swarm.hapticsSupported(), v: window.__swarm.lastVibrate() }));
     check(`${label}: haptics ${touch ? 'fire on turn' : 'inactive on desktop'}`, touch ? hap.s && hap.v === 8 : !hap.s && hap.v === null, JSON.stringify(hap));
     if (touch) {
@@ -100,8 +102,7 @@ async function session(label, ctxOpts, touch) {
       const cx = pad.x + pad.width / 2, cy = pad.y + pad.height / 2, hw = pad.width / 2;
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx - hw * 0.65, y: cy - hw * 0.25, id: 0 }] });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      await page.waitForFunction(() => window.__swarm.getState().dir === 'left', null, { timeout: 3000 });
-      check(`${label}: corner touch resolves to dominant axis`, true);
+      check(`${label}: corner touch resolves to dominant axis`, await settles(() => window.__swarm.getState().dir === 'left'));
     }
     const pause = () => (touch ? page.locator('#pause-btn').tap() : page.keyboard.press('Space'));
     await pause();
@@ -113,13 +114,12 @@ async function session(label, ctxOpts, touch) {
     await page.waitForFunction(() => window.__swarm.getState().bots.length === 2, null, { timeout: 3000 });
     check(`${label}: collect + spawn`, (await state()).score === 1);
   } else {
-    console.log(`SKIP ${label}: audio, 1:1 metrics, steer, haptics, collect (window.__swarm is absent from production builds; run against an e2e build for these)`);
+    console.log(`SKIP ${label}: audio, 1:1 metrics, steer, haptics, corner touch, collect, best stored (window.__swarm is absent from production builds; run against an e2e build for these)`);
   }
   await page.locator('#help-btn').click();
-  await page.waitForFunction(() => document.body.dataset.status === 'paused');
+  const helpPaused = await settles(() => document.body.dataset.status === 'paused');
   await page.locator('#help-close').click();
-  await page.waitForFunction(() => document.body.dataset.status === 'running');
-  check(`${label}: help pauses and resumes`, true);
+  check(`${label}: help pauses and resumes`, helpPaused && (await settles(() => document.body.dataset.status === 'running')));
   await page.waitForFunction(() => document.body.dataset.status === 'over', null, { timeout: 15000 });
   await page.waitForTimeout(600);
   const over = await page.evaluate(() => ({ mode: document.getElementById('mascot').dataset.mode, frame: document.getElementById('mascot').dataset.frame, hidden: document.getElementById('mascot').hidden }));
@@ -133,11 +133,13 @@ async function session(label, ctxOpts, touch) {
   await page.locator('#mute-btn').click();
   check(`${label}: mute toggle`, (await page.locator('#mute-btn').getAttribute('aria-pressed')) === 'true');
   check(`${label}: zero console/asset errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-  check(`${label}: same-origin only`, [...hosts].every((h) => h === 'meridian-knight.github.io'), [...hosts].join(','));
+  check(`${label}: same-origin only`, [...hosts].every((h) => h === new URL(BASE).host), [...hosts].join(','));
   await ctx.close();
 }
-await session('desktop', { viewport: { width: 1280, height: 800 } }, false);
-await session('pixel7', { ...devices['Pixel 7'] }, true);
+for (const [label, ctxOpts, touch] of [['desktop', { viewport: { width: 1280, height: 800 } }, false], ['pixel7', { ...devices['Pixel 7'] }, true]]) {
+  // A thrown wait must still leave a summary and a closed browser.
+  try { await session(label, ctxOpts, touch); } catch (e) { check(`${label}: session ran to the end`, false, String(e.message ?? e).split('\n')[0]); }
+}
 await browser.close();
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} live checks passed`);

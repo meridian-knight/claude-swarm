@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 // Read-only start-screen / deck fit audit across phone viewports. Usage: BASE_URL=... node scripts/audit-start.mjs
-const BASE = process.env.BASE_URL ?? 'https://meridian-knight.github.io/claude-swarm/?test';
+const BASE = process.env.BASE_URL ?? 'https://meridian-knight.github.io/claude-swarm/';
 const browser = await chromium.launch();
 const cases = [
   ['android-small', 360, 640, 2], ['android-small-bars', 360, 560, 2], ['iphone-se', 375, 667, 2], ['iphone-se-bars', 375, 553, 2],

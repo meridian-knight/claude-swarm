@@ -24,9 +24,6 @@ async function grow(page, n, pause, resume) {
   await grow(page, 7, () => page.keyboard.press('Space'), () => page.keyboard.press('Space'));
   await page.keyboard.press('ArrowLeft');
   await page.waitForTimeout(400);
-  await page.keyboard.press('Space'); // pause so the overlay... no: keep running look; resume immediately
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(120);
   const box = await page.locator('.handheld').boundingBox();
   await page.screenshot({ path: `${out}/screenshot-desktop.png`, clip: { x: box.x - 12, y: box.y - 12, width: box.width + 24, height: box.height + 24 } });
   await ctx.close();

@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 // Read-only help-dialog fit audit across phone viewports. Usage: BASE_URL=... node scripts/audit-help.mjs
-const BASE = process.env.BASE_URL ?? 'https://meridian-knight.github.io/claude-swarm/?test';
+const BASE = process.env.BASE_URL ?? 'https://meridian-knight.github.io/claude-swarm/';
 const browser = await chromium.launch();
 for (const [name, w, h, dpr] of [['android-small', 360, 640, 2], ['android-small-bars', 360, 560, 2], ['iphone-se', 375, 667, 2], ['pixel7', 412, 915, 2.625], ['se-landscape', 667, 375, 2], ['pixel7-landscape-bars', 915, 300, 2.625]]) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: true, hasTouch: true });
