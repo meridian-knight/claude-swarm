@@ -186,8 +186,8 @@ bindInput(
 
 hud.setMuted(audio.isMuted);
 hud.muteButton.addEventListener('click', () => {
-  audio.unlock();
   audio.setMuted(!audio.isMuted);
+  audio.unlock(); // after the toggle, so unmuting creates the context on this gesture
   saveMuted(audio.isMuted);
   hud.setMuted(audio.isMuted);
   hud.muteButton.blur();

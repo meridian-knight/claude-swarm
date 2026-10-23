@@ -6,7 +6,7 @@ export interface InputHandlers {
   onPause(): void;
   /** Enter key or the big overlay button: start, resume or restart depending on status. */
   onAction(): void;
-  /** Any first user gesture (used to unlock audio). */
+  /** Any user gesture (unlocks or resumes audio). */
   onGesture(): void;
   /** When true (e.g. a dialog is open) no game input is processed. */
   isBlocked(): boolean;
@@ -61,6 +61,8 @@ export function bindInput(
     'keydown',
     (e) => {
       if (handlers.isBlocked()) return;
+      // Browser and OS shortcuts (Cmd+S, Ctrl+A, Alt+D...) are not game input.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const dir = KEY_DIRECTIONS[e.key];
       if (dir) {
         e.preventDefault();
@@ -180,12 +182,18 @@ export function bindInput(
     if (handlers.isBlocked()) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
     handlers.onGesture();
+    try {
+      elements.canvas.setPointerCapture(e.pointerId); // a swipe released off the board still counts
+    } catch {
+      // Capture is a nicety, not a requirement.
+    }
   });
   const finish = (e: PointerEvent): void => {
     if (!start || e.pointerId !== start.id) return;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     start = null;
+    if (handlers.isBlocked()) return;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return;
     if (Math.abs(dx) > Math.abs(dy)) steer(dx > 0 ? 'right' : 'left');
     else steer(dy > 0 ? 'down' : 'up');

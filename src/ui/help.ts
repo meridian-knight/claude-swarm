@@ -26,10 +26,11 @@ export class HelpModal {
     private readonly opener: HTMLButtonElement,
     private readonly hooks: HelpHooks,
   ) {
-    opener.addEventListener('click', () => this.toggle());
-    closeButton.addEventListener('click', () => this.close());
+    // detail is 0 for keyboard activation, so a pointer close does not restore focus.
+    opener.addEventListener('click', (e) => this.toggle(e.detail > 0));
+    closeButton.addEventListener('click', (e) => this.close(e.detail > 0));
     root.addEventListener('click', (e) => {
-      if (e.target === root) this.close(); // click on the backdrop
+      if (e.target === root) this.close(e.detail > 0); // click on the backdrop
     });
     window.addEventListener(
       'keydown',
@@ -51,8 +52,8 @@ export class HelpModal {
     return this.opened;
   }
 
-  toggle(): void {
-    if (this.opened) this.close();
+  toggle(viaPointer = false): void {
+    if (this.opened) this.close(viaPointer);
     else this.open();
   }
 
@@ -72,7 +73,12 @@ export class HelpModal {
     this.root.querySelector(".modal-panel")?.scrollTo({ top: 0 });
   }
 
-  close(): void {
+  /**
+   * Keyboard closes (Escape, Enter on Close) return focus to where it was so
+   * the user can carry on; a pointer close leaves nothing focused, otherwise
+   * the help button would keep focus and Space or Enter would reopen it.
+   */
+  close(viaPointer = false): void {
     if (!this.opened) return;
     this.opened = false;
     delete document.body.dataset.help;
@@ -85,7 +91,8 @@ export class HelpModal {
     if (prefersReducedMotion()) hide();
     else this.hideTimer = window.setTimeout(hide, FADE_MS);
     this.hooks.onClose();
-    (this.returnFocus ?? this.opener).focus();
+    if (viaPointer) (document.activeElement as HTMLElement | null)?.blur();
+    else (this.returnFocus ?? this.opener).focus();
     this.returnFocus = null;
   }
 

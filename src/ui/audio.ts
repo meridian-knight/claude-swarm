@@ -36,7 +36,8 @@ export class GameAudio {
    * activation). Resuming is asynchronous; sounds scheduled meanwhile still play.
    */
   unlock(): void {
-    if (this.unavailable) return;
+    // Muted users never need a context; unmuting unlocks on that same gesture.
+    if (this.unavailable || this.muted) return;
     if (!this.ctx) {
       const Ctor =
         window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;

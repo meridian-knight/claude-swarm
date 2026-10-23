@@ -36,8 +36,7 @@ export class Haptics {
     if (!this.supported) return;
     try {
       // Returns false when the call is ignored (no user activation yet); harmless.
-      navigator.vibrate(pattern);
-      this.lastPattern = pattern;
+      if (navigator.vibrate(pattern)) this.lastPattern = pattern;
     } catch {
       // Ignore: vibration is a nicety, never a requirement.
     }
