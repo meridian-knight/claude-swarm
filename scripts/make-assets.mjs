@@ -64,8 +64,6 @@ await pngFromSvg(icon, 16, 'favicon-16.png', true);
 await pngFromSvg(icon, 32, 'favicon-32.png', true);
 await pngFromSvg(icon, 48, 'favicon-48.png', true);
 await pngFromSvg(iconOpaque, 180, 'apple-touch-icon.png', false);
-await pngFromSvg(iconOpaque, 192, 'icon-192.png', false);
-await pngFromSvg(iconOpaque, 512, 'icon-512.png', false);
 await browser.close();
 
 // --- favicon.ico: PNG-in-ICO container with 16/32/48 entries
@@ -79,5 +77,5 @@ const dir = Buffer.concat(entries.map(({ s, data }) => {
   offset += data.length; return b;
 }));
 writeFileSync(join(out, 'favicon.ico'), Buffer.concat([header, dir, ...entries.map((e) => e.data)]));
-unlinkSync(join(out, 'favicon-48.png')); // only needed inside the ICO
+for (const s of [16, 48]) unlinkSync(join(out, `favicon-${s}.png`)); // only needed inside the ICO; the page links favicon-32.png
 console.log('assets written');

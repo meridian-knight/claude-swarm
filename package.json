@@ -17,10 +17,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "serve:subpath": "node scripts/serve-dist.mjs 4174",
-    "assets": "node scripts/make-assets.mjs public social-preview-v4.png",
+    "assets": "node scripts/make-assets.mjs",
     "shots": "node scripts/readme-shots.mjs docs"
   },
+  "engines": { "node": ">=22" },
   "devDependencies": {
     "@playwright/test": "1.60.0",
     "typescript": "5.9.3",
