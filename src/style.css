@@ -189,10 +189,6 @@ button {
   gap: 6px;
 }
 
-.hud-buttons:empty {
-  display: none;
-}
-
 .chip {
   position: relative;
   width: 36px;
@@ -374,8 +370,15 @@ button {
   color: var(--muted);
 }
 
-.hint-line[hidden] {
-  display: none;
+.noscript {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  color: var(--cream);
 }
 
 .eyebrow {
@@ -840,7 +843,7 @@ body[data-layout="touch"] .action {
   }
 }
 
-/* Short desktop windows: trim vertical padding so a crisp 480px board fits. */
+/* Short windows (any layout): trim vertical padding so the board fits. */
 @media (max-height: 700px) {
   body {
     padding-top: max(8px, env(safe-area-inset-top, 0px));
@@ -905,7 +908,13 @@ body[data-layout="touch"] .action {
     --util: 48px;
   }
   .title {
-    display: none; /* the mascot carries the brand; the start screen shows the name */
+    /* The mascot carries the brand; keep the h1 for assistive tech, just not on screen. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   body {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
@@ -987,7 +996,7 @@ body[data-layout="touch"] .action {
   }
 }
 
-/* Short landscape phones: D-pad left, board centre, A/B right. */
+/* Short landscape phones: pause/help/sound left, board centre, D-pad right. */
 @media (max-height: 520px) and (orientation: landscape) {
   :root {
     --chrome: 120px;

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -23,7 +23,6 @@
     <meta property="og:title" content="Claude Swarm | 90s Retro Game Inspired by Nokia’s Snake | CyberSquad0" />
     <meta property="og:description" content="Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile. Built by CyberSquad0 + Claude." />
     <meta property="og:image" content="https://meridian-knight.github.io/claude-swarm/social-preview-v4.png" />
-    <meta property="og:image:secure_url" content="https://meridian-knight.github.io/claude-swarm/social-preview-v4.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -43,10 +42,10 @@
         "description": "Consume tokens, spawn agents and grow your swarm. A free retro arcade fan game inspired by Nokia’s Snake, for desktop and mobile. Built by CyberSquad0 + Claude.",
         "genre": "Arcade",
         "gamePlatform": "Web browser",
-        "applicationCategory": "Game",
+        "applicationCategory": "GameApplication",
         "operatingSystem": "Any",
         "isAccessibleForFree": true,
-        "inLanguage": "en",
+        "inLanguage": "en-GB",
         "author": { "@type": "Organization", "name": "CyberSquad0", "url": "https://www.cs0.dev" }
       }
     </script>
@@ -71,7 +70,8 @@
       </header>
 
       <section class="screen" id="screen">
-        <canvas id="board" width="480" height="480" aria-label="Game board"></canvas>
+        <canvas id="board" width="480" height="480" role="img" aria-label="Game board"></canvas>
+        <noscript><p class="noscript">Claude Swarm needs JavaScript to run.</p></noscript>
         <div id="effects" class="effects" aria-live="polite"></div>
 
         <div id="overlay" class="overlay" role="dialog" aria-labelledby="overlay-title">
@@ -91,13 +91,13 @@
 
       <section class="deck" id="deck" aria-label="Touch controls">
         <div class="deck-left" id="deck-left"></div>
-        <nav class="dpad" aria-label="Direction pad">
+        <div class="dpad" role="group" aria-label="Direction pad">
           <button type="button" class="dpad-btn up" data-dir="up" aria-label="Up">▲</button>
           <button type="button" class="dpad-btn left" data-dir="left" aria-label="Left">◀</button>
           <span class="dpad-center" aria-hidden="true"></span>
           <button type="button" class="dpad-btn right" data-dir="right" aria-label="Right">▶</button>
           <button type="button" class="dpad-btn down" data-dir="down" aria-label="Down">▼</button>
-        </nav>
+        </div>
       </section>
 
         <div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>

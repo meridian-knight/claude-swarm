@@ -24,6 +24,8 @@ export function bindLayout(els: LayoutElements): void {
       els.hudButtons.append(els.help, els.pause, els.mute);
       document.body.dataset.layout = 'desktop';
     }
+    // Whitespace text nodes keep the emptied bar from matching :empty, so hide it explicitly.
+    els.hudButtons.hidden = touchLayout.matches;
   };
   touchLayout.addEventListener('change', apply);
   apply();

@@ -46,12 +46,17 @@ export class Hud {
   readonly muteButton = el<HTMLButtonElement>('mute-btn');
 
   private last: HudStats = { score: -1, best: -1, bots: -1 };
+  private lastOverlay: OverlayInfo | null = null;
   private openTimer: number | null = null;
   private closeTimer: number | null = null;
 
   constructor() {
     this.renderLegends();
-    touchLayout.addEventListener('change', () => this.renderLegends());
+    touchLayout.addEventListener('change', () => {
+      this.renderLegends();
+      // Overlay copy mentions keys or taps, so refresh it for the new layout.
+      if (this.lastOverlay && !this.overlay.hidden) this.setOverlay(this.lastOverlay);
+    });
   }
 
   private renderLegends(): void {
@@ -78,8 +83,8 @@ export class Hud {
   }
 
   setMuted(muted: boolean): void {
+    // A toggle keeps one label; aria-pressed carries the state ("Mute sound, pressed").
     this.muteButton.setAttribute('aria-pressed', String(muted));
-    this.muteButton.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
     this.muteButton.textContent = muted ? '🔇' : '🔊';
   }
 
@@ -88,11 +93,14 @@ export class Hud {
    * or hides the overlay, optionally after a short delay so a death or win
    * animation can play first.
    */
-  setOverlay({ status, score, best, newBest }: OverlayInfo, delayMs = 0): void {
+  setOverlay(info: OverlayInfo, delayMs = 0): void {
+    const { status, score, best, newBest } = info;
+    this.lastOverlay = info;
     document.body.dataset.status = status;
     this.pauseButton.disabled = status !== 'running' && status !== 'paused';
     this.pauseButton.textContent = status === 'paused' ? '▶' : '❚❚';
     this.pauseButton.setAttribute('aria-label', status === 'paused' ? 'Resume' : 'Pause');
+    this.pauseButton.title = status === 'paused' ? 'Resume (Space)' : 'Pause (Space)';
 
     if (this.openTimer !== null) window.clearTimeout(this.openTimer);
     this.openTimer = null;
@@ -150,6 +158,9 @@ export class Hud {
     this.overlay.hidden = false;
     void this.overlay.offsetWidth;
     this.overlay.classList.add('is-open');
+    // Moving focus into the dialog announces "Paused" / "Game over" to assistive
+    // tech and puts Resume / Restart under Space and Enter. Not on first load.
+    if (document.body.dataset.status !== 'idle') this.actionButton.focus({ preventScroll: true });
   }
 
   private close(): void {
