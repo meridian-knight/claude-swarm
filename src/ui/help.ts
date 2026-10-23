@@ -2,6 +2,8 @@
  * Accessible "How to play" dialog. Owns focus management and the Escape key;
  * the caller decides what pausing and resuming mean.
  */
+import { prefersReducedMotion } from './visual';
+
 const FADE_MS = 200;
 
 export interface HelpHooks {
@@ -10,10 +12,6 @@ export interface HelpHooks {
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 export class HelpModal {
   private opened = false;

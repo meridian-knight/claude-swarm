@@ -38,8 +38,8 @@ function easeOut(t: number): number {
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
-  /** Device pixels per board cell (a whole number: the canvas maps 1:1 to device pixels). */
-  private cellDevice = 24;
+  /** Device pixels per board cell (a whole number: the canvas maps 1:1 to device pixels). 0 until the first resize. */
+  private cellDevice = 0;
   /** Device pixels per sprite pixel (cellDevice / 12, possibly fractional). */
   private scale = 2;
   private dpr = 1;
@@ -99,6 +99,9 @@ export class Renderer {
     const crisp = SPRITE_PX * Math.floor(cellDevice / SPRITE_PX);
     const threshold = dpr < 2 ? 0.75 : 0.9;
     if (crisp >= cellDevice * threshold && (wholeCss(crisp) || !wholeCss(cellDevice))) cellDevice = crisp;
+    // Viewport scrolls and settle passes often land on the same size; skip the
+    // backing-store reset, cache clear and vignette rebuild then.
+    if (dpr === this.dpr && cellDevice === this.cellDevice) return;
     this.dpr = dpr;
     this.cellDevice = cellDevice;
     this.scale = cellDevice / SPRITE_PX;
@@ -222,7 +225,7 @@ export class Renderer {
     if (state.token) {
       const { x, y } = state.token;
       const pulse = reduced ? 0 : ((Math.floor(now / TOKEN_PULSE_MS) % 2) as 0 | 1);
-      const sprite = this.sprite(`token:${pulse}:${cell}`, () => tokenSprite(pulse, scale));
+      const sprite = this.sprite(`token:${pulse}`, () => tokenSprite(pulse, scale));
       ctx.drawImage(sprite, x * cell, y * cell);
       this.lastToken = { x, y };
       this.lastTokenFrame = pulse;
@@ -281,7 +284,7 @@ export class Renderer {
 
       // Only the head's eyes follow the heading, so body sprites share one cache entry per look.
       const gazeKey = isHead ? state.dir : '-';
-      const sprite = this.sprite(`${kind}:${gazeKey}:${legs}:${face}:${tone}:${cell}`, () =>
+      const sprite = this.sprite(`${kind}:${gazeKey}:${legs}:${face}:${tone}`, () =>
         botSprite({ kind, dir: state.dir, legFrame: legs, face, tone }, scale),
       );
       const dx = this.snap(fx);
@@ -320,6 +323,5 @@ export class Renderer {
       ctx.drawImage(this.vignette, 0, 0);
       ctx.globalAlpha = 1;
     }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 }

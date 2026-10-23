@@ -1,6 +1,7 @@
 import type { Status } from '../game/types';
 import { renderControls } from './controls';
 import { touchLayout } from './layout';
+import { prefersReducedMotion } from './visual';
 
 export interface HudStats {
   score: number;
@@ -21,10 +22,6 @@ function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Missing element #${id}`);
   return node as T;
-}
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 export class Hud {
@@ -115,7 +112,6 @@ export class Hud {
     this.mascot.hidden = status === 'paused';
     this.eyebrow.hidden = status !== 'idle';
     this.controls.hidden = status !== 'idle';
-    this.keys.hidden = false;
     const touch = touchLayout.matches;
     this.hint.hidden = !(status === 'idle' && touch);
     this.hint.textContent = status === 'idle' && touch ? 'Use the D-pad or swipe to move.' : '';

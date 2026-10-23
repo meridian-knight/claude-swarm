@@ -3,7 +3,6 @@
   --bezel: #241c16;
   --bezel-edge: #3a2d23;
   --bezel-dark: #0d0a08;
-  --screen: #1c1712;
   --orange: #d97757;
   --orange-deep: #9a4f36;
   --orange-light: #f4a97a;
@@ -410,10 +409,6 @@ button {
   color: var(--muted);
 }
 
-.keys[hidden] {
-  display: none;
-}
-
 .action {
   margin-top: 6px;
   background: var(--orange);
@@ -508,21 +503,6 @@ button {
   min-width: 58px;
 }
 
-.key-round {
-  width: calc(var(--key) + 6px);
-  height: calc(var(--key) + 6px);
-  min-width: 0;
-  padding: 0;
-  border-radius: 50%;
-}
-
-.key-a {
-  background: var(--orange);
-  color: #1a110b;
-  border-color: var(--orange-deep);
-  box-shadow: 0 2px 0 var(--orange-deep);
-}
-
 .mini-dpad {
   display: grid;
   grid-template-columns: repeat(3, 18px);
@@ -549,7 +529,6 @@ button {
 .mini-dpad .c {
   grid-area: c;
   border: 0;
-  background: var(--bezel-edge);
   position: relative;
 }
 
@@ -783,9 +762,7 @@ button {
 }
 
 .deck #mute-btn[aria-pressed="true"] {
-  background: #2a211a;
-  color: var(--muted);
-  border-style: dashed;
+  border-style: dashed; /* colours come from .chip[aria-pressed="true"] */
 }
 
 
@@ -890,7 +867,6 @@ body[data-layout="touch"] .action {
     --chrome: 322px;
     --arm: 52px;
     --util: 48px;
-    --board-min: 304px; /* 288px frame content + padding; whole device px per cell may trim the canvas to 280px */
   }
   .handheld {
     gap: 8px;
@@ -1023,7 +999,7 @@ body[data-layout="touch"] .action {
   .hud { grid-area: hud; padding: 0; }
   .screen { grid-area: screen; }
   .deck { display: contents; }
-  .deck-left { grid-area: left; justify-self: center; flex-direction: column; }
+  .deck-left { grid-area: left; justify-self: center; }
   .dpad { grid-area: right; justify-self: center; }
   .foot { grid-area: foot; font-size: 9px; }
   .foot p { margin: 0; }
@@ -1064,8 +1040,6 @@ body[data-layout="touch"] .action {
   .stat dd.bump {
     animation: stat-flash 0.18s linear;
   }
-  .dpad-btn.pressed,
-  .dpad-btn:active,
   .action:active,
   .chip:active,
   .deck .chip:active {

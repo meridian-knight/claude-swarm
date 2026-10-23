@@ -4,8 +4,8 @@
  */
 import type { Direction } from '../game/types';
 import { botSprite, SPRITE_PX, type Face, type Gaze, type LegFrame } from './sprites';
+import { BLINK_MS } from './visual';
 
-const BLINK_MS = 160;
 const HOP_MS = 520;
 const SPIN_MS = 400;
 const LOOK_EVERY_MS = 5000;
@@ -17,10 +17,14 @@ const SPIN_ORDER: readonly Direction[] = ['up', 'right', 'down', 'left'];
 
 export type MascotMode = 'idle' | 'over' | 'won';
 
+/** Whole device pixels per CSS pixel, capped at 3 (the sprite caches are keyed by it). */
+function deviceScale(): number {
+  return Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)));
+}
+
 /** Draws one static leader bot into a canvas (used for the header brand mark). */
-export function drawStaticBot(canvas: HTMLCanvasElement, cssScale: number, face: Face = 'open'): void {
-  const dpr = Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)));
-  const pixel = cssScale * dpr;
+export function drawStaticBot(canvas: HTMLCanvasElement, cssScale: number): void {
+  const pixel = cssScale * deviceScale();
   canvas.width = SPRITE_PX * pixel;
   canvas.height = SPRITE_PX * pixel;
   canvas.style.width = `${SPRITE_PX * cssScale}px`;
@@ -29,7 +33,7 @@ export function drawStaticBot(canvas: HTMLCanvasElement, cssScale: number, face:
   if (!ctx) return;
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(botSprite({ kind: 'head', dir: 'right', legFrame: 0, face, tone: 'leader', gaze: 'centre' }, pixel), 0, 0);
+  ctx.drawImage(botSprite({ kind: 'head', dir: 'right', legFrame: 0, face: 'open', tone: 'leader', gaze: 'centre' }, pixel), 0, 0);
 }
 
 export class Mascot {
@@ -82,8 +86,7 @@ export class Mascot {
   fit(titleFontPx: number, boardPx?: number): void {
     if (boardPx === undefined) this.scale = titleFontPx >= 22 ? 6 : titleFontPx >= 19 ? 5 : 4;
     else this.scale = boardPx >= 300 ? 5 : boardPx >= 240 ? 4 : 3;
-    const dpr = Math.max(1, Math.min(3, Math.round(window.devicePixelRatio || 1)));
-    this.pixel = this.scale * dpr;
+    this.pixel = this.scale * deviceScale();
     this.canvas.width = SPRITE_PX * this.pixel;
     this.canvas.height = SPRITE_PX * this.pixel;
     this.canvas.style.width = `${SPRITE_PX * this.scale}px`;

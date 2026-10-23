@@ -17,7 +17,7 @@ import { Haptics, type VibratePattern } from './ui/haptics';
 import { HelpModal } from './ui/help';
 import { Hud } from './ui/hud';
 import { bindInput } from './ui/input';
-import { bindLayout } from './ui/layout';
+import { bindLayout, touchLayout } from './ui/layout';
 import { drawStaticBot, Mascot } from './ui/mascot';
 import { Renderer } from './ui/renderer';
 import { loadBest, loadMuted, saveBest, saveMuted } from './ui/storage';
@@ -28,7 +28,6 @@ declare global {
     __swarm?: {
       getState(): GameState;
       placeToken(p: Point): void;
-      step(): void;
       lastDraw(): Point;
       boardMetrics(): ReturnType<Renderer['boardMetrics']>;
       /** Test-only: replaces the swarm with a legal n-bot chain (visual/perf checks). */
@@ -62,23 +61,24 @@ const dpad = document.querySelector('.dpad') as HTMLElement;
 if (!dpad) throw new Error('Missing d-pad');
 
 const hud = new Hud();
+const helpButton = document.getElementById('help-btn') as HTMLButtonElement;
+const hudMascot = document.getElementById('hud-mascot') as HTMLCanvasElement;
 bindLayout({
   hudButtons: document.querySelector<HTMLElement>('.hud-buttons') as HTMLElement,
   deckLeft: document.getElementById('deck-left') as HTMLElement,
   pause: hud.pauseButton,
-  help: document.getElementById('help-btn') as HTMLButtonElement,
+  help: helpButton,
   mute: hud.muteButton,
 });
 const haptics = new Haptics();
 const renderer = new Renderer(canvas, GRID_COLS, GRID_ROWS);
-const effects = new Effects(effectsLayer, canvas, GRID_COLS, () => renderer.cellCss);
+const effects = new Effects(effectsLayer, canvas, () => renderer.cellCss);
 const audio = new GameAudio(loadMuted());
 const visual = new VisualState();
 const mascot = new Mascot(hud.mascot, () => visual.reducedMotion);
 
 const helpRoot = document.getElementById('help') as HTMLElement;
 const helpClose = document.getElementById('help-close') as HTMLButtonElement;
-const helpButton = document.getElementById('help-btn') as HTMLButtonElement;
 let resumeAfterHelp = false;
 const help = new HelpModal(helpRoot, helpClose, helpButton, {
   onOpen() {
@@ -215,9 +215,8 @@ function screenContentBox(): { w: number; h: number } {
 const resize = (): void => {
   const { w, h } = screenContentBox();
   renderer.resize(w, h);
-  const touchLayout = document.body.dataset.layout === 'touch';
-  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20, touchLayout ? Math.min(w, h) : undefined);
-  drawStaticBot(document.getElementById('hud-mascot') as HTMLCanvasElement, 2);
+  mascot.fit(parseFloat(getComputedStyle(hud.titleNode).fontSize) || 20, touchLayout.matches ? Math.min(w, h) : undefined);
+  drawStaticBot(hudMascot, 2);
   updateDebugOverlay();
 };
 // Coalesce bursts of layout events (toolbar animations, rotation) into one
@@ -312,9 +311,6 @@ if (testMode) {
     getState: () => state,
     placeToken(p: Point) {
       state = { ...state, token: p };
-    },
-    step() {
-      apply(step(state, rng));
     },
     lastDraw: () => renderer.lastHead,
     boardMetrics: () => renderer.boardMetrics(),

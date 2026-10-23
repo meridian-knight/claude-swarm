@@ -35,6 +35,11 @@ export const DEATH_DIM_START_MS = 150;
 export const SHAKE_MS = 120;
 export const WIN_CHOMP_MS = 500;
 
+/** One-off check used by the DOM transitions; VisualState tracks the live value. */
+export function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /** Chip palette, so the burst reads as the chip breaking apart. */
 const SPARK_COLOURS = ['#f3e6cf', '#f7c948', '#d97757', '#9a4f36', '#fff6e6', '#f7c948', '#d97757', '#f3e6cf'];
 

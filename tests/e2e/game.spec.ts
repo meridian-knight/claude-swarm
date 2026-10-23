@@ -17,7 +17,7 @@ interface SwarmState {
   token: Point | null;
 }
 type SwarmWindow = Window & {
-  __swarm: { getState(): SwarmState; placeToken(p: Point): void; step(): void };
+  __swarm: { getState(): SwarmState; placeToken(p: Point): void };
 };
 
 const VECTORS: Record<SwarmState['dir'], Point> = {
