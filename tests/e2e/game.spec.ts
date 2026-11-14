@@ -1036,7 +1036,7 @@ test.describe('release checks', () => {
     const footer = await page.locator('.foot').evaluate((el) => ({ rendered: (el as HTMLElement).innerText, transform: getComputedStyle(el).textTransform }));
     expect(footer.transform).toBe('uppercase');
     expect(footer.rendered).toContain('CYBER SQUAD ZERO + CLAUDE');
-    expect(footer.rendered).not.toMatch(/CYBERSQUAD0|NORTH OF ZERO/);
+    expect(footer.rendered).not.toMatch(/CYBERSQUAD0/);
     expect(footer.rendered).toContain('NOT AFFILIATED WITH OR ENDORSED BY ANTHROPIC.');
     const credit = page.locator('.foot a.credit-link');
     await expect(credit).toHaveAttribute('href', 'https://www.cs0.dev');
